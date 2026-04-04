@@ -921,7 +921,7 @@ async function saveToNotion() {
   } catch (e) {
     // CORSエラーの可能性 → テキストをコピーして案内
     showScreen('resultScreen');
-    showToast('保存失敗。テキストをコピーしてNotionに貼り付けてください', 'error');
+    showToast('保存失敗: ' + e.message, 'error');
   }
 }
 
@@ -944,6 +944,6 @@ window.addEventListener('load', () => {
 });
 </script>
 
-    <div style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#666;opacity:0.5;">v2.1</div>
+    <div style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#666;opacity:0.5;">v2.2</div>
 </body>
 </html>
