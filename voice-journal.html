@@ -882,7 +882,7 @@ async function saveToNotion() {
   const props = {
     '名前': { title: [{ text: { content: titleStr } }] },
     '日付': { date: { start: dateStr } },
-    '時刻': { rich_text: [{ text: { content: timeStr } }] },
+    '時刻': { date: { start: dateStr + 'T' + timeStr + ':00' } },
     '本文': { rich_text: [{ text: { content: currentText.slice(0, 2000) } }] }
   };
 
@@ -944,6 +944,6 @@ window.addEventListener('load', () => {
 });
 </script>
 
-    <div style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#666;opacity:0.5;">v2.0</div>
+    <div style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#666;opacity:0.5;">v2.1</div>
 </body>
 </html>
