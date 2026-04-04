@@ -788,7 +788,8 @@ ${text}`;
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': s.claudeKey,
-        'anthropic-version': '2023-06-01'
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
@@ -937,9 +938,4 @@ window.addEventListener('load', () => {
   if (s.claudeKey && s.notionToken) {
     showScreen('mainScreen');
   } else {
-    showScreen('setupScreen');
-  }
-});
-</script>
-</body>
-</html>
+    
