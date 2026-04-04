@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="音声日記">
+<title>音声ジャーナル</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;500&family=Noto+Sans+JP:wght@300;400&display=swap');
+
+  :root {
+    --bg: #0f0e0c;
+    --bg2: #1a1814;
+    --bg3: #252219;
+    --text: #e8e0d0;
+    --text2: #a09080;
+    --accent: #c8a96e;
+    --accent2: #8b6f3e;
+    --red: #c06060;
+    --green: #6a9e7a;
+    --radius: 16px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans JP', sans-serif;
+    font-weight: 300;
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0;
+    overflow-x: hidden;
+  }
+
+  /* ===== SCREENS ===== */
+  .screen {
+    display: none;
+    width: 100%;
+    max-width: 480px;
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+    flex-direction: column;
+    padding: env(safe-area-inset-top, 20px) 24px env(safe-area-inset-bottom, 20px);
+  }
+  .screen.active { display: flex; }
+
+  /* ===== SETUP SCREEN ===== */
+  #setupScreen {
+    justify-content: center;
+    gap: 32px;
+  }
+
+  .setup-header {
+    text-align: center;
+  }
+  .setup-header h1 {
+    font-family: 'Noto Serif JP', serif;
+    font-size: 28px;
+    font-weight: 300;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+    margin-bottom: 8px;
+  }
+  .setup-header p {
+    font-size: 13px;
+    color: var(--text2);
+    letter-spacing: 0.05em;
+  }
+
+  .field-group { display: flex; flex-direction: column; gap: 16px; }
+
+  .field label {
+    display: block;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    color: var(--text2);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .field input {
+    width: 100%;
+    background: var(--bg2);
+    border: 1px solid var(--bg3);
+    border-radius: 10px;
+    padding: 14px 16px;
+    color: var(--text);
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .field input:focus { border-color: var(--accent2); }
+  .field input::placeholder { color: var(--text2); opacity: 0.5; }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #0f0e0c;
+    border: none;
+    border-radius: 12px;
+    padding: 16px;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 15px;
+    font-weight: 400;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+    width: 100%;
+  }
+  .btn-primary:active { opacity: 0.8; transform: scale(0.98); }
+
+  /* ===== MAIN SCREEN ===== */
+  #mainScreen { justify-content: space-between; }
+
+  .main-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 12px;
+  }
+  .main-title {
+    font-family: 'Noto Serif JP', serif;
+    font-size: 18px;
+    font-weight: 300;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+  }
+  .settings-btn {
+    background: none;
+    border: none;
+    color: var(--text2);
+    cursor: pointer;
+    font-size: 20px;
+    padding: 4px;
+  }
+
+  .record-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 40px;
+    padding: 40px 0;
+  }
+
+  .status-text {
+    font-size: 13px;
+    color: var(--text2);
+    letter-spacing: 0.1em;
+    text-align: center;
+    min-height: 20px;
+    transition: opacity 0.3s;
+  }
+
+  .mic-btn {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    border: 2px solid var(--accent2);
+    background: var(--bg2);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s;
+    position: relative;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .mic-btn svg { width: 48px; height: 48px; color: var(--accent); transition: all 0.3s; }
+  .mic-btn:active { transform: scale(0.95); }
+
+  .mic-btn.recording {
+    border-color: var(--red);
+    background: rgba(192, 96, 96, 0.1);
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+  .mic-btn.recording svg { color: var(--red); }
+
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(192, 96, 96, 0.3); }
+    50% { box-shadow: 0 0 0 20px rgba(192, 96, 96, 0); }
+  }
+
+  .transcript-box {
+    width: 100%;
+    background: var(--bg2);
+    border-radius: var(--radius);
+    padding: 20px;
+    min-height: 120px;
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid var(--bg3);
+  }
+  .transcript-box p {
+    font-size: 15px;
+    line-height: 1.8;
+    color: var(--text);
+    white-space: pre-wrap;
+  }
+  .transcript-box .interim {
+    color: var(--text2);
+    opacity: 0.6;
+  }
+  .transcript-placeholder {
+    font-size: 13px;
+    color: var(--text2);
+    opacity: 0.4;
+    font-style: italic;
+  }
+
+  .action-row {
+    display: flex;
+    gap: 12px;
+    padding-bottom: 12px;
+  }
+  .btn-secondary {
+    flex: 1;
+    background: var(--bg2);
+    border: 1px solid var(--bg3);
+    border-radius: 12px;
+    padding: 14px;
+    color: var(--text2);
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+  }
+  .btn-secondary:active { opacity: 0.7; }
+  .btn-send {
+    flex: 2;
+    background: var(--accent2);
+    border: none;
+    border-radius: 12px;
+    padding: 14px;
+    color: var(--text);
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.05em;
+  }
+  .btn-send:active { opacity: 0.8; }
+  .btn-send:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  /* ===== PROCESSING SCREEN ===== */
+  #processingScreen { justify-content: center; align-items: center; gap: 24px; }
+
+  .processing-icon {
+    width: 80px; height: 80px;
+    border: 2px solid var(--bg3);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .processing-label {
+    font-family: 'Noto Serif JP', serif;
+    font-size: 16px;
+    color: var(--text2);
+    letter-spacing: 0.1em;
+  }
+
+  /* ===== RESULT SCREEN ===== */
+  #resultScreen { gap: 20px; padding-top: 24px; }
+
+  .result-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .result-title {
+    font-family: 'Noto Serif JP', serif;
+    font-size: 16px;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+  }
+  .result-time {
+    font-size: 12px;
+    color: var(--text2);
+  }
+
+  .result-body {
+    background: var(--bg2);
+    border-radius: var(--radius);
+    padding: 4px;
+    flex: 1;
+    border: 1px solid var(--bg3);
+    max-height: 280px;
+    position: relative;
+    transition: border-color 0.2s;
+  }
+  .result-body:focus-within {
+    border-color: var(--accent2);
+  }
+  .result-body textarea {
+    width: 100%;
+    height: 100%;
+    min-height: 200px;
+    background: transparent;
+    border: none;
+    outline: none;
+    resize: none;
+    padding: 16px;
+    font-family: 'Noto Serif JP', serif;
+    font-size: 15px;
+    line-height: 2;
+    color: var(--text);
+    -webkit-appearance: none;
+    overflow-y: auto;
+  }
+  .edit-hint {
+    font-size: 11px;
+    color: var(--accent2);
+    letter-spacing: 0.08em;
+    text-align: right;
+    padding: 0 4px 4px;
+  }
+
+  .mood-section, .tag-section { display: flex; flex-direction: column; gap: 10px; }
+  .section-label {
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    color: var(--text2);
+    text-transform: uppercase;
+  }
+
+  .mood-row, .tag-row { display: flex; flex-wrap: wrap; gap: 8px; }
+
+  .chip {
+    padding: 8px 16px;
+    border-radius: 20px;
+    border: 1px solid var(--bg3);
+    background: var(--bg2);
+    color: var(--text2);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Noto Sans JP', sans-serif;
+  }
+  .chip.selected {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(200, 169, 110, 0.1);
+  }
+  .chip:active { opacity: 0.7; }
+
+  .result-actions { display: flex; gap: 12px; padding-bottom: 12px; }
+  .btn-save {
+    flex: 1;
+    background: var(--accent);
+    border: none;
+    border-radius: 12px;
+    padding: 16px;
+    color: #0f0e0c;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 15px;
+    font-weight: 400;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.05em;
+  }
+  .btn-save:active { opacity: 0.8; transform: scale(0.98); }
+
+  /* ===== TOAST ===== */
+  .toast {
+    position: fixed;
+    bottom: calc(env(safe-area-inset-bottom, 20px) + 80px);
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--bg3);
+    color: var(--text);
+    padding: 12px 24px;
+    border-radius: 24px;
+    font-size: 13px;
+    opacity: 0;
+    transition: all 0.3s;
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 100;
+    border: 1px solid var(--bg3);
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  .toast.success { border-color: var(--green); color: var(--green); }
+  .toast.error { border-color: var(--red); color: var(--red); }
+</style>
+</head>
+<body>
+
+<!-- ===== SETUP SCREEN ===== -->
+<div id="setupScreen" class="screen">
+  <div class="setup-header">
+    <h1>音声ジャーナル</h1>
+    <p>初回設定を行ってください</p>
+  </div>
+  <div class="field-group">
+    <div class="field">
+      <label>Claude API キー</label>
+      <input type="password" id="claudeKey" placeholder="sk-ant-..." autocomplete="off">
+    </div>
+    <div class="field">
+      <label>Notion トークン</label>
+      <input type="password" id="notionToken" placeholder="secret_..." autocomplete="off">
+    </div>
+    <div class="field">
+      <label>Notion データベース ID</label>
+      <input type="text" id="notionDbId" value="3380f4bd26f68088aab6fcfbb5c260a5" autocomplete="off">
+    </div>
+  </div>
+  <button class="btn-primary" onclick="saveSettings()">設定を保存して始める</button>
+</div>
+
+<!-- ===== MAIN SCREEN ===== -->
+<div id="mainScreen" class="screen">
+  <div class="main-header">
+    <span class="main-title">音声ジャーナル</span>
+    <button class="settings-btn" onclick="showScreen('setupScreen')" title="設定">⚙</button>
+  </div>
+
+  <div class="record-area">
+    <div class="status-text" id="statusText">タップして録音開始</div>
+    <button class="mic-btn" id="micBtn" onclick="toggleRecording()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+        <line x1="12" y1="19" x2="12" y2="23"/>
+        <line x1="8" y1="23" x2="16" y2="23"/>
+      </svg>
+    </button>
+    <div class="transcript-box" id="transcriptBox">
+      <span class="transcript-placeholder" id="transcriptPlaceholder">話した内容がここに表示されます</span>
+      <span id="transcriptFinal"></span>
+      <span id="transcriptInterim" class="interim"></span>
+    </div>
+  </div>
+
+  <div class="action-row">
+    <button class="btn-secondary" onclick="clearTranscript()">クリア</button>
+    <button class="btn-send" id="sendBtn" onclick="processAndSave()" disabled>AIで整形して保存</button>
+  </div>
+</div>
+
+<!-- ===== PROCESSING SCREEN ===== -->
+<div id="processingScreen" class="screen">
+  <div class="processing-icon"></div>
+  <div class="processing-label" id="processingLabel">AIが整形中...</div>
+</div>
+
+<!-- ===== RESULT SCREEN ===== -->
+<div id="resultScreen" class="screen">
+  <div class="result-header">
+    <span class="result-title">整形結果</span>
+    <span class="result-time" id="resultTime"></span>
+  </div>
+
+  <div class="result-body">
+    <textarea id="resultText" spellcheck="false" autocorrect="off" autocapitalize="off"></textarea>
+  </div>
+  <div class="edit-hint">✏ タップして編集できます</div>
+
+  <div class="mood-section">
+    <div class="section-label">気分</div>
+    <div class="mood-row">
+      <button class="chip" onclick="selectMood('良い')">😊 良い</button>
+      <button class="chip" onclick="selectMood('普通')">😐 普通</button>
+      <button class="chip" onclick="selectMood('悪い')">😔 悪い</button>
+    </div>
+  </div>
+
+  <div class="tag-section">
+    <div class="section-label">タグ（複数選択可）</div>
+    <div class="tag-row">
+      <button class="chip" onclick="toggleTag('家族')">家族</button>
+      <button class="chip" onclick="toggleTag('健康')">健康</button>
+      <button class="chip" onclick="toggleTag('仕事')">仕事</button>
+      <button class="chip" onclick="toggleTag('趣味')">趣味</button>
+      <button class="chip" onclick="toggleTag('気づき')">気づき</button>
+      <button class="chip" onclick="toggleTag('山形')">山形</button>
+      <button class="chip" onclick="toggleTag('食事')">食事</button>
+      <button class="chip" onclick="toggleTag('外出')">外出</button>
+    </div>
+  </div>
+
+  <div class="result-actions">
+    <button class="btn-secondary" style="flex:1" onclick="showScreen('mainScreen')">戻る</button>
+    <button class="btn-save" onclick="saveToNotion()">Notionに保存</button>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== STATE =====
+let isRecording = false;
+let recognition = null;
+let finalTranscript = '';
+let interimTranscript = '';
+let selectedMood = '';
+let selectedTags = [];
+let formattedText = '';
+
+// ===== DICTIONARY =====
+const DICTIONARY = [
+  {r:'しょうへい',c:'翔平'},{r:'まな',c:'真奈'},{r:'そうた',c:'想太'},
+  {r:'ゆき',c:'由貴'},{r:'ひでき',c:'秀喜'},
+  {r:'あいらぶ',c:'株式会社Ilove'},{r:'いらぶ',c:'Ilove'},
+  {r:'やまがたし',c:'山形市'},{r:'やまがたけん',c:'山形県'},
+  {r:'あいおいちょう',c:'相生町'},{r:'あおた',c:'青田'},{r:'あおたみなみ',c:'青田南'},
+  {r:'あおの',c:'青野'},{r:'あおやぎ',c:'青柳'},{r:'あかしどう',c:'明石堂'},
+  {r:'あかねがおか',c:'あかねケ丘'},{r:'あけぼの',c:'あけぼの'},
+  {r:'あこやちょう',c:'あこや町'},{r:'あさひがおか',c:'旭が丘'},
+  {r:'あさひまち',c:'あさひ町'},{r:'あずまちょう',c:'あずま町'},
+  {r:'あらたてちょう',c:'荒楯町'},{r:'いいざわ',c:'飯沢'},{r:'いいだ',c:'飯田'},
+  {r:'いいだにし',c:'飯田西'},{r:'いいづかぐち',c:'飯塚口'},{r:'いいづかまち',c:'飯塚町'},
+  {r:'いしぜき',c:'石関'},{r:'いすず',c:'五十鈴'},{r:'いずみちょう',c:'泉町'},
+  {r:'いつかまち',c:'五日町'},{r:'いまづか',c:'今塚'},{r:'いものまち',c:'鋳物町'},
+  {r:'いわなみ',c:'岩波'},{r:'いんやくまち',c:'印役町'},{r:'うちおもて',c:'内表'},
+  {r:'うちおもてひがし',c:'内表東'},{r:'うめのきまえ',c:'梅野木前'},
+  {r:'うるしやま',c:'漆山'},{r:'うわえ',c:'上江'},{r:'うわまち',c:'上町'},
+  {r:'えまた',c:'江俣'},{r:'えんのうじまち',c:'円応寺町'},{r:'おおてまち',c:'大手町'},
+  {r:'おおみちばた',c:'大道端'},{r:'おおもり',c:'大森'},{r:'おきまち',c:'沖町'},
+  {r:'おだち',c:'小立'},{r:'おちあいまち',c:'落合町'},{r:'おてさく',c:'御手作'},
+  {r:'おもてざおう',c:'表蔵王'},{r:'かえしょ',c:'替所'},{r:'かごた',c:'篭田'},
+  {r:'かざま',c:'風間'},{r:'かしわぐら',c:'柏倉'},{r:'かじょうまち',c:'霞城町'},
+  {r:'かすがちょう',c:'春日町'},{r:'かすみちょう',c:'香澄町'},{r:'かたやち',c:'片谷地'},
+  {r:'かないしだ',c:'金石田'},{r:'かみくぬぎざわ',c:'上椹沢'},{r:'かみさくらだ',c:'上桜田'},
+  {r:'かみそりだ',c:'上反田'},{r:'かみひがしやま',c:'上東山'},{r:'かみほうざわ',c:'上宝沢'},
+  {r:'かみやなぎ',c:'上柳'},{r:'かみやんべまち',c:'上山家町'},{r:'かんのう',c:'神尾'},
+  {r:'きたえまた',c:'北江俣'},{r:'きただ',c:'北田'},{r:'きたまち',c:'北町'},
+  {r:'きたやまがた',c:'北山形'},{r:'きのみちょう',c:'木の実町'},{r:'きのめだ',c:'木ノ目田'},
+  {r:'きよずみまち',c:'清住町'},{r:'きりはた',c:'切畑'},{r:'ぎょうさい',c:'行才'},
+  {r:'くぬぎざわにし',c:'くぬぎざわ西'},{r:'くぼた',c:'久保田'},{r:'くろさわ',c:'黒沢'},
+  {r:'こうなん',c:'江南'},{r:'こがね',c:'黄金'},{r:'こしょうまち',c:'小姓町'},
+  {r:'こじらかわまち',c:'小白川町'},{r:'ことぶきちょう',c:'寿町'},{r:'こにだまち',c:'小荷駄町'},
+  {r:'こもいし',c:'こも石'},{r:'ごみょう',c:'後明'},{r:'さいわいちょう',c:'幸町'},
+  {r:'さおとめ',c:'早乙女'},{r:'さかいだまち',c:'境田町'},{r:'さかえばら',c:'栄原'},
+  {r:'さかなまち',c:'肴町'},{r:'さくらがおか',c:'桜ケ丘'},{r:'さくらだにし',c:'桜田西'},
+  {r:'さくらだひがし',c:'桜田東'},{r:'さくらだみなみ',c:'桜田南'},{r:'さくらちょう',c:'桜町'},
+  {r:'さんしゃ',c:'三社'},{r:'ざおういいだ',c:'蔵王飯田'},{r:'ざおううわの',c:'蔵王上野'},
+  {r:'ざおうおんせん',c:'蔵王温泉'},{r:'ざおうなりさわ',c:'蔵王成沢'},
+  {r:'ざおうにしなりさわ',c:'蔵王西成沢'},{r:'ざおうのぎわ',c:'蔵王野際'},
+  {r:'ざおうはんごう',c:'蔵王半郷'},{r:'ざおうほった',c:'蔵王堀田'},
+  {r:'ざおうまつがおか',c:'蔵王松ケ丘'},{r:'ざおうみなみなりさわ',c:'蔵王南成沢'},
+  {r:'ざおうやまだ',c:'蔵王山田'},{r:'しかま',c:'志鎌'},{r:'しとだ',c:'志戸田'},
+  {r:'しぶえ',c:'渋江'},{r:'しま',c:'島'},{r:'しまきた',c:'嶋北'},{r:'しまみなみ',c:'嶋南'},
+  {r:'しもくぬぎざわ',c:'下椹沢'},{r:'しもじょうまち',c:'下条町'},{r:'しもそりだ',c:'下反田'},
+  {r:'しもだ',c:'下田'},{r:'しもひがしやま',c:'下東山'},{r:'しもほうざわ',c:'下宝沢'},
+  {r:'しもやなぎ',c:'下柳'},{r:'しもやんべまち',c:'下山家町'},{r:'しゃかどう',c:'釈迦堂'},
+  {r:'しらかわ',c:'白川'},{r:'しろにしまち',c:'城西町'},{r:'しろもり',c:'城森'},
+  {r:'しんかい',c:'新開'},{r:'じゅうもんじ',c:'十文字'},{r:'じょうなんまち',c:'城南町'},
+  {r:'じょうほくまち',c:'城北町'},{r:'じょうみょうじ',c:'常明寺'},{r:'じんば',c:'陣場'},
+  {r:'じんばしんでん',c:'陣場新田'},{r:'じんばみなみ',c:'陣場南'},{r:'すえひろちょう',c:'末広町'},
+  {r:'すげさわ',c:'菅沢'},{r:'すげさわのおか',c:'すげさわの丘'},{r:'すしあらい',c:'鮨洗'},
+  {r:'すずかわまち',c:'鈴川町'},{r:'すなだ',c:'砂田'},{r:'すなづか',c:'砂塚'},
+  {r:'すわまち',c:'諏訪町'},{r:'せきざわ',c:'関沢'},{r:'せなみ',c:'瀬波'},
+  {r:'せんがり',c:'千刈'},{r:'せんごく',c:'千石'},{r:'せんじゅどう',c:'千手堂'},
+  {r:'そうつきしんちょう',c:'双月新町'},{r:'そうつきまち',c:'双月町'},{r:'そりまち',c:'反町'},
+  {r:'たかぎ',c:'高木'},{r:'たかさわ',c:'高沢'},{r:'たかだ',c:'高田'},{r:'たかどう',c:'高堂'},
+  {r:'たかはらまち',c:'高原町'},{r:'たきのひら',c:'滝平'},{r:'たちやがわ',c:'立谷川'},
+  {r:'だいしどう',c:'大師堂'},{r:'だいのめ',c:'大野目'},{r:'だいのめまち',c:'大野目町'},
+  {r:'だてじょう',c:'伊達城'},{r:'だんのまえ',c:'檀野前'},{r:'ちかだ',c:'近田'},
+  {r:'ちとせ',c:'千歳'},{r:'ちよだ',c:'千代田'},{r:'つがねざわ',c:'津金沢'},
+  {r:'つちざか',c:'土坂'},{r:'つちどい',c:'土樋'},{r:'てっぽうまち',c:'鉄砲町'},
+  {r:'てらにし',c:'寺西'},{r:'てんじんだい',c:'天神台'},{r:'てんじんちょう',c:'天神町'},
+  {r:'とうかまち',c:'十日町'},{r:'とうじやしき',c:'藤治屋敷'},{r:'とうのまえ',c:'塔の前'},
+  {r:'とがみだい',c:'富神台'},{r:'とがみまえ',c:'富神前'},{r:'とみのじゅう',c:'富の中'},
+  {r:'とよごし',c:'樋越'},{r:'とりいがおか',c:'鳥居ケ丘'},{r:'どうまち',c:'銅町'},
+  {r:'どうやぐち',c:'銅谷口'},{r:'どめき',c:'百目鬼'},{r:'なかさくらだ',c:'中桜田'},
+  {r:'なかざと',c:'中里'},{r:'なかぬま',c:'中沼'},{r:'なかの',c:'中野'},
+  {r:'なかのめ',c:'中野目'},{r:'ながなわしろ',c:'長苗代'},{r:'ながまち',c:'長町'},
+  {r:'ななうら',c:'七浦'},{r:'ななじゅうがり',c:'七十刈'},{r:'なぬかまち',c:'七日町'},
+  {r:'なみやなぎ',c:'並柳'},{r:'なめかわ',c:'滑川'},{r:'なりさわにし',c:'成沢西'},
+  {r:'なりやす',c:'成安'},{r:'なんえいちょう',c:'南栄町'},{r:'にいだ',c:'二位田'},
+  {r:'にいやま',c:'新山'},{r:'にしえまた',c:'西江俣'},{r:'にしきちょう',c:'錦町'},
+  {r:'にしごし',c:'西越'},{r:'にしざき',c:'西崎'},{r:'にした',c:'西田'},
+  {r:'にしなかの',c:'西中野'},{r:'にしはら',c:'西原'},{r:'にしみだ',c:'西見田'},
+  {r:'ぬまぎ',c:'沼木'},{r:'ぬまのべまち',c:'沼の辺町'},{r:'はいづか',c:'灰塚'},
+  {r:'はくさん',c:'白山'},{r:'はぐろどう',c:'羽黒堂'},{r:'はせどう',c:'長谷堂'},
+  {r:'はたごまち',c:'旅篭町'},{r:'はちまんまえ',c:'八幡前'},{r:'はちもり',c:'八森'},
+  {r:'はなおか',c:'花岡'},{r:'はなたて',c:'花楯'},{r:'はまざき',c:'浜崎'},
+  {r:'ばじょうだい',c:'馬上台'},{r:'ひがしあおた',c:'東青田'},{r:'ひがしかごのまち',c:'東篭野町'},
+  {r:'ひがししとだ',c:'東志戸田'},{r:'ひがしだ',c:'東田'},{r:'ひがしにいだ',c:'東二位田'},
+  {r:'ひがしはらまち',c:'東原町'},{r:'ひがしはんごう',c:'東半郷'},{r:'ひがしふるだて',c:'東古館'},
+  {r:'ひがしやまがた',c:'東山形'},{r:'ひのきちょう',c:'桧町'},{r:'ひらくぼ',c:'平久保'},
+  {r:'ひらしみず',c:'平清水'},{r:'ふかまち',c:'深町'},{r:'ふじさわがわ',c:'藤沢川'},
+  {r:'ふたばちょう',c:'双葉町'},{r:'ふなまち',c:'船町'},{r:'ふるだて',c:'古館'},
+  {r:'へいだ',c:'平田'},{r:'ほづみ',c:'穂積'},{r:'ほんちょう',c:'本町'},
+  {r:'ぼうばらまち',c:'防原町'},{r:'まえあかし',c:'前明石'},{r:'まえたまち',c:'前田町'},
+  {r:'まつえい',c:'松栄'},{r:'まつなみ',c:'松波'},{r:'まつばら',c:'松原'},
+  {r:'まつみちょう',c:'松見町'},{r:'まつやま',c:'松山'},{r:'まみがさき',c:'馬見ケ崎'},
+  {r:'みさき',c:'見崎'},{r:'みさきかわら',c:'見崎川原'},{r:'みっかまち',c:'三日町'},
+  {r:'みどりちょう',c:'緑町'},{r:'みなみいちばんちょう',c:'南一番町'},
+  {r:'みなみにばんちょう',c:'南二番町'},{r:'みなみさんばんちょう',c:'南三番町'},
+  {r:'みなみよんばんちょう',c:'南四番町'},{r:'みなみいしぜき',c:'南石関'},
+  {r:'みなみしとだ',c:'南志戸田'},{r:'みなみだて',c:'南館'},{r:'みなみだてにし',c:'南館西'},
+  {r:'みなみはらまち',c:'南原町'},{r:'みなみはんごう',c:'南半郷'},{r:'みなみまつばら',c:'南松原'},
+  {r:'みのりがおか',c:'みのりが丘'},{r:'みはたちょう',c:'美畑町'},
+  {r:'みはらしのおか',c:'みはらしの丘'},{r:'みやうら',c:'宮浦'},{r:'みやまち',c:'宮町'},
+  {r:'みょうけんじ',c:'妙見寺'},{r:'みょうじんまえ',c:'明神前'},{r:'むいかまち',c:'六日町'},
+  {r:'むかいしんでん',c:'向新田'},{r:'むらきざわ',c:'村木沢'},{r:'もとき',c:'元木'},
+  {r:'もんでん',c:'門伝'},{r:'やがしわ',c:'谷柏'},{r:'やくしまち',c:'薬師町'},
+  {r:'やちまえ',c:'谷地前'},{r:'やなぎだ',c:'柳田'},{r:'やまでら',c:'山寺'},
+  {r:'やよい',c:'やよい'},{r:'やんべほんちょう',c:'山家本町'},{r:'やんべまち',c:'山家町'},
+  {r:'ようかまち',c:'八日町'},{r:'よこい',c:'横井'},{r:'よこみち',c:'横道'},
+  {r:'よしざわ',c:'芳沢'},{r:'よしの',c:'芳野'},{r:'よしのじゅく',c:'吉野宿'},
+  {r:'よしはら',c:'吉原'},{r:'よしはらみなみ',c:'吉原南'},
+  {r:'りゅうつうせんたー',c:'流通センター'},{r:'わかぎ',c:'若木'},
+  {r:'わかばちょう',c:'若葉町'},{r:'わかみや',c:'若宮'},{r:'わごうまち',c:'和合町'}
+];
+
+// ===== SETTINGS =====
+function loadSettings() {
+  return {
+    claudeKey: localStorage.getItem('vj_claude_key') || '',
+    notionToken: localStorage.getItem('vj_notion_token') || '',
+    notionDbId: localStorage.getItem('vj_notion_db') || '3380f4bd26f68088aab6fcfbb5c260a5'
+  };
+}
+
+function saveSettings() {
+  const key = document.getElementById('claudeKey').value.trim();
+  const token = document.getElementById('notionToken').value.trim();
+  const db = document.getElementById('notionDbId').value.trim();
+
+  if (!key || !token || !db) {
+    showToast('すべての項目を入力してください', 'error');
+    return;
+  }
+
+  localStorage.setItem('vj_claude_key', key);
+  localStorage.setItem('vj_notion_token', token);
+  localStorage.setItem('vj_notion_db', db);
+  showToast('設定を保存しました', 'success');
+  showScreen('mainScreen');
+}
+
+// ===== SCREEN MANAGEMENT =====
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+
+  // Setup screen: prefill saved values
+  if (id === 'setupScreen') {
+    const s = loadSettings();
+    if (s.claudeKey) document.getElementById('claudeKey').value = s.claudeKey;
+    if (s.notionToken) document.getElementById('notionToken').value = s.notionToken;
+    if (s.notionDbId) document.getElementById('notionDbId').value = s.notionDbId;
+  }
+}
+
+// ===== SPEECH RECOGNITION =====
+function initRecognition() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    showToast('このブラウザは音声認識に対応していません', 'error');
+    return null;
+  }
+  const r = new SR();
+  r.lang = 'ja-JP';
+  r.continuous = true;
+  r.interimResults = true;
+
+  r.onresult = (e) => {
+    interimTranscript = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const t = e.results[i][0].transcript;
+      if (e.results[i].isFinal) {
+        finalTranscript += t;
+      } else {
+        interimTranscript += t;
+      }
+    }
+    updateTranscriptDisplay();
+    document.getElementById('sendBtn').disabled = !finalTranscript.trim();
+  };
+
+  r.onend = () => {
+    if (isRecording) {
+      try { r.start(); } catch(e) {}
+    }
+  };
+
+  r.onerror = (e) => {
+    if (e.error !== 'no-speech') {
+      showToast('音声認識エラー: ' + e.error, 'error');
+      stopRecording();
+    }
+  };
+
+  return r;
+}
+
+function updateTranscriptDisplay() {
+  const placeholder = document.getElementById('transcriptPlaceholder');
+  const finalEl = document.getElementById('transcriptFinal');
+  const interimEl = document.getElementById('transcriptInterim');
+
+  if (finalTranscript || interimTranscript) {
+    placeholder.style.display = 'none';
+    finalEl.textContent = finalTranscript;
+    interimEl.textContent = interimTranscript;
+  } else {
+    placeholder.style.display = '';
+    finalEl.textContent = '';
+    interimEl.textContent = '';
+  }
+}
+
+function toggleRecording() {
+  if (isRecording) {
+    stopRecording();
+  } else {
+    startRecording();
+  }
+}
+
+function startRecording() {
+  if (!recognition) recognition = initRecognition();
+  if (!recognition) return;
+
+  try {
+    recognition.start();
+    isRecording = true;
+    document.getElementById('micBtn').classList.add('recording');
+    document.getElementById('statusText').textContent = '録音中... タップで停止';
+  } catch (e) {
+    showToast('録音を開始できませんでした', 'error');
+  }
+}
+
+function stopRecording() {
+  if (recognition) {
+    isRecording = false;
+    recognition.stop();
+  }
+  document.getElementById('micBtn').classList.remove('recording');
+  document.getElementById('statusText').textContent = 'タップして録音開始';
+  interimTranscript = '';
+  updateTranscriptDisplay();
+}
+
+function clearTranscript() {
+  stopRecording();
+  finalTranscript = '';
+  interimTranscript = '';
+  updateTranscriptDisplay();
+  document.getElementById('sendBtn').disabled = true;
+}
+
+// ===== CLAUDE API =====
+async function formatWithClaude(text) {
+  const s = loadSettings();
+  const dictStr = DICTIONARY.map(e => `「${e.r}」→「${e.c}」`).join(' ');
+
+  const prompt = `以下の音声入力テキストを、自然な一人称の日記文体（です・ます調ではなく、だ・である調）に整えてください。
+
+【ルール】
+・話者が実際に言った内容のみをもとに整える
+・感情・意図・背景の推測や補足は一切加えない
+・言っていないことを補完しない
+・以下の固有名詞辞書を参照して誤変換を修正する
+・辞書にない固有名詞は原文のままにする
+・整形したテキストのみ出力する（説明・タイトル不要）
+
+【固有名詞辞書】
+${dictStr}
+
+【音声入力テキスト】
+${text}`;
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': s.claudeKey,
+      'anthropic-version': '2023-06-01'
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 1000,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error?.message || 'Claude APIエラー');
+  }
+
+  const data = await res.json();
+  return data.content[0].text.trim();
+}
+
+// ===== PROCESS =====
+async function processAndSave() {
+  const text = finalTranscript.trim();
+  if (!text) return;
+
+  stopRecording();
+  showScreen('processingScreen');
+  document.getElementById('processingLabel').textContent = 'AIが日記に整形中...';
+
+  try {
+    formattedText = await formatWithClaude(text);
+
+    // Set result time
+    const now = new Date();
+    document.getElementById('resultTime').textContent =
+      now.toLocaleDateString('ja-JP') + ' ' +
+      now.toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit'});
+
+    document.getElementById('resultText').value = formattedText;
+
+    // Reset mood/tags
+    selectedMood = '';
+    selectedTags = [];
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+
+    showScreen('resultScreen');
+  } catch (e) {
+    showToast('エラー: ' + e.message, 'error');
+    showScreen('mainScreen');
+  }
+}
+
+// ===== MOOD & TAGS =====
+function selectMood(mood) {
+  selectedMood = mood;
+  document.querySelectorAll('.mood-row .chip').forEach(c => {
+    c.classList.toggle('selected', c.textContent.includes(mood));
+  });
+}
+
+function toggleTag(tag) {
+  const idx = selectedTags.indexOf(tag);
+  if (idx === -1) {
+    selectedTags.push(tag);
+  } else {
+    selectedTags.splice(idx, 1);
+  }
+  document.querySelectorAll('.tag-row .chip').forEach(c => {
+    c.classList.toggle('selected', selectedTags.includes(c.textContent));
+  });
+}
+
+// ===== NOTION =====
+async function saveToNotion() {
+  const s = loadSettings();
+  // textareaの現在の内容を使う（編集済みの場合はそちらを優先）
+  const currentText = document.getElementById('resultText').value.trim() || formattedText;
+  const now = new Date();
+  const dateStr = now.toISOString();
+  const timeStr = now.toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit'});
+  const titleStr = now.toLocaleDateString('ja-JP') + ' ' + timeStr + '　' +
+    currentText.slice(0, 30).replace(/\n/g, ' ') + '…';
+
+  showScreen('processingScreen');
+  document.getElementById('processingLabel').textContent = 'Notionに保存中...';
+
+  const props = {
+    '名前': { title: [{ text: { content: titleStr } }] },
+    '日付': { date: { start: dateStr } },
+    '時刻': { rich_text: [{ text: { content: timeStr } }] },
+    '本文': { rich_text: [{ text: { content: currentText.slice(0, 2000) } }] }
+  };
+
+  if (selectedMood) props['気分'] = { select: { name: selectedMood } };
+  if (selectedTags.length) props['タグ'] = { multi_select: selectedTags.map(t => ({ name: t })) };
+
+  const body = {
+    parent: { database_id: s.notionDbId },
+    properties: props,
+    children: [{
+      object: 'block',
+      type: 'paragraph',
+      paragraph: {
+        rich_text: [{ type: 'text', text: { content: currentText } }]
+      }
+    }]
+  };
+
+  try {
+    const res = await fetch('https://api.notion.com/v1/pages', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + s.notionToken,
+        'Content-Type': 'application/json',
+        'Notion-Version': '2022-06-28'
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (res.ok) {
+      showToast('Notionに保存しました ✓', 'success');
+      clearTranscript();
+      showScreen('mainScreen');
+    } else {
+      const err = await res.json();
+      throw new Error(err.message || 'Notion APIエラー');
+    }
+  } catch (e) {
+    // CORSエラーの可能性 → テキストをコピーして案内
+    showScreen('resultScreen');
+    showToast('保存失敗。テキストをコピーしてNotionに貼り付けてください', 'error');
+  }
+}
+
+// ===== TOAST =====
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  setTimeout(() => { t.className = 'toast'; }, 3000);
+}
+
+// ===== INIT =====
+window.addEventListener('load', () => {
+  const s = loadSettings();
+  if (s.claudeKey && s.notionToken) {
+    showScreen('mainScreen');
+  } else {
+    showScreen('setupScreen');
+  }
+});
+</script>
+</body>
+</html>
