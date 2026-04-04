@@ -407,6 +407,7 @@
   <div class="setup-header">
     <h1>音声ジャーナル</h1>
     <p>初回設定を行ってください</p>
+        <p style="font-size:12px;color:#888;margin-top:4px;">v2.3</p>
   </div>
   <div class="field-group">
     <div class="field">
@@ -882,7 +883,7 @@ async function saveToNotion() {
   const props = {
     '名前': { title: [{ text: { content: titleStr } }] },
     '日付': { date: { start: dateStr } },
-    '時刻': { date: { start: dateStr + 'T' + timeStr + ':00' } },
+    '時刻': { date: { start: new Date().toISOString().slice(0, 19) } },
     '本文': { rich_text: [{ text: { content: currentText.slice(0, 2000) } }] }
   };
 
@@ -944,6 +945,6 @@ window.addEventListener('load', () => {
 });
 </script>
 
-    <div style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#666;opacity:0.5;">v2.2</div>
+    <div style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#666;opacity:0.5;">v2.3</div>
 </body>
 </html>
