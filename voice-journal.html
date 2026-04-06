@@ -674,7 +674,7 @@
     text-transform: uppercase;
   }
 
-  .mood-row, .tag-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .tag-row { display: flex; flex-wrap: wrap; gap: 8px; }
 
   .chip {
     padding: 8px 16px;
@@ -740,7 +740,7 @@
 <body>
 
 <!-- ===== VERSION BADGE ===== -->
-<div class="version-badge">v3.0</div>
+<div class="version-badge">v3.1</div>
 
 <!-- ===== SETUP SCREEN ===== -->
 <div id="setupScreen" class="screen">
@@ -1081,11 +1081,7 @@ function switchTab(tab) {
 
   if (tab === 'record') {
     document.getElementById('navRecord').classList.add('active');
-    showScreen('mainScreen');
-  } else if (tab === 'history') {
-    document.getElementById('navHistory').classList.add('active');
-    showScreen('historyScreen');
-  } else if (tab === 'settings') {
+    showScreen('mainScreen'); else if (tab === 'settings') {
     document.getElementById('navSettings').classList.add('active');
     showScreen('settingsScreen');
   }
