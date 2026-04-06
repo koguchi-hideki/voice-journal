@@ -792,62 +792,6 @@
 </div>
 
 <!-- ===== HISTORY SCREEN ===== -->
-<div id="historyScreen" class="screen">
-  <div class="history-header">
-    <span class="history-title">履歴</span>
-    <button class="btn-refresh" id="refreshBtn" onclick="loadHistory()" title="更新">⟳</button>
-  </div>
-
-  <div class="history-list" id="historyList">
-    <div class="history-loading">
-      <div class="spinner"></div>
-      <span>読み込み中...</span>
-    </div>
-  </div>
-</div>
-
-<!-- ===== SETTINGS SCREEN ===== -->
-<div id="settingsScreen" class="screen">
-  <div class="settings-header">
-    <span class="settings-title">設定</span>
-  </div>
-
-  <div class="settings-section">
-    <div class="settings-section-label">API キー</div>
-    <div class="field-group">
-      <div class="field">
-        <label>Claude API キー</label>
-        <input type="password" id="settingsClaudeKey" placeholder="sk-ant-..." autocomplete="off">
-      </div>
-      <div class="field">
-        <label>Notion データベース ID</label>
-        <input type="text" id="settingsNotionDbId" autocomplete="off">
-      </div>
-    </div>
-  </div>
-
-  <div class="settings-section">
-    <div class="settings-section-label">ユーザー辞書</div>
-    <div class="dict-section">
-      <div class="dict-entries" id="dictEntries"></div>
-      <div class="dict-input-row">
-        <input type="text" id="dictYomi" placeholder="読み（ひらがな）" autocomplete="off">
-        <input type="text" id="dictHenkan" placeholder="変換後" autocomplete="off">
-        <button class="btn-dict-add" onclick="addDictEntry()">追加</button>
-      </div>
-    </div>
-  </div>
-
-  <button class="btn-primary" onclick="saveSettingsFromSettings()">設定を保存</button>
-</div>
-
-<!-- ===== PROCESSING SCREEN ===== -->
-<div id="processingScreen" class="screen">
-  <div class="processing-icon"></div>
-  <div class="processing-label" id="processingLabel">AIが整形中...</div>
-</div>
-
-<!-- ===== RESULT SCREEN ===== -->
 <div id="resultScreen" class="screen">
   <div class="result-header">
     <span class="result-title">整形結果</span>
@@ -871,14 +815,10 @@
   <div class="tag-section">
     <div class="section-label">タグ（複数選択可）</div>
     <div class="tag-row">
-      <button class="chip" onclick="toggleTag('家族')">家族</button>
-      <button class="chip" onclick="toggleTag('健康')">健康</button>
       <button class="chip" onclick="toggleTag('仕事')">仕事</button>
-      <button class="chip" onclick="toggleTag('趣味')">趣味</button>
       <button class="chip" onclick="toggleTag('気づき')">気づき</button>
-      <button class="chip" onclick="toggleTag('山形')">山形</button>
-      <button class="chip" onclick="toggleTag('食事')">食事</button>
-      <button class="chip" onclick="toggleTag('外出')">外出</button>
+      <button class="chip" onclick="toggleTag('ToDo')">✅ ToDo</button>
+      <button class="chip" onclick="toggleTag('その他')">その他</button>
     </div>
   </div>
 
@@ -898,10 +838,7 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
     <span>録音</span>
   </button>
-  <button class="nav-item" id="navHistory" onclick="switchTab('history')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-    <span>履歴</span>
-  </button>
+  
   <button class="nav-item" id="navSettings" onclick="switchTab('settings')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
     <span>設定</span>
@@ -1202,7 +1139,7 @@ function initRecognition() {
   };
 
   r.onerror = (e) => {
-    if (e.error !== 'no-speech') {
+    if (e.error !== 'no-speech' && e.error !== 'aborted') {
       showToast('音声認識エラー: ' + e.error, 'error');
       stopRecording();
     }
@@ -1540,7 +1477,25 @@ async function saveToNotion() {
       clearTranscript();
       finalTranscript = '';
       showScreen('mainScreen');
-      switchTab('record');
+          if (selectedTags && selectedTags.includes('ToDo')) {
+      try {
+        const todoBody = {
+          action: 'createPage',
+          database_id: 'b73b1c4d47264de6ae100ff1d3a68bdc',
+          properties: {
+            'タスク': { title: [{ text: { content: currentText } }] },
+            '日付': { date: { start: dateStr } },
+            'メモ': { rich_text: [{ text: { content: memoVal } }] }
+          }
+        };
+        await fetch('https://notion-proxy.crimson-breeze-6bca.workers.dev', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(todoBody)
+        });
+      } catch(todoErr) { console.error('ToDo save error:', todoErr); }
+    }
+    switchTab('record');
     } else {
       const err = await res.json();
       throw new Error(err.message || 'Worker APIエラー');
