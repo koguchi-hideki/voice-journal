@@ -803,15 +803,6 @@
   </div>
   <div class="edit-hint">✏ タップして編集できます</div>
 
-  <div class="mood-section">
-    <div class="section-label">気分</div>
-    <div class="mood-row">
-      <button class="chip" onclick="selectMood('良い')">😊 良い</button>
-      <button class="chip" onclick="selectMood('普通')">😐 普通</button>
-      <button class="chip" onclick="selectMood('悪い')">😔 悪い</button>
-    </div>
-  </div>
-
   <div class="tag-section">
     <div class="section-label">タグ（複数選択可）</div>
     <div class="tag-row">
@@ -820,11 +811,6 @@
       <button class="chip" onclick="toggleTag('ToDo')">✅ ToDo</button>
       <button class="chip" onclick="toggleTag('その他')">その他</button>
     </div>
-  </div>
-
-  <div class="mood-section" style="margin-top:16px;padding:0 4px;">
-    <div class="mood-label">メモ（任意）</div>
-    <textarea id="memoText" placeholder="補足メモを入力..." style="width:100%;min-height:72px;background:var(--bg2);color:var(--text);border:1px solid var(--border, #3a3a2a);border-radius:12px;padding:12px;font-size:14px;font-family:inherit;resize:vertical;margin-top:8px;box-sizing:border-box;"></textarea>
   </div>
   <div class="result-actions">
     <button class="btn-secondary" style="flex:1" onclick="showScreen('mainScreen')">戻る</button>
@@ -854,7 +840,6 @@ let isRecording = false;
 let recognition = null;
 let finalTranscript = '';
 let interimTranscript = '';
-let selectedMood = '';
 let selectedTags = [];
 let formattedText = '';
 let micPermissionGranted = false;
@@ -1334,26 +1319,16 @@ async function processAndSave() {
       now.toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit'});
 
     document.getElementById('resultText').value = formattedText;
-
-    selectedMood = '';
     selectedTags = [];
     document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
 
     showScreen('resultScreen');
-        const _memo = document.getElementById('memoText'); if (_memo) _memo.value = '';
   } catch (e) {
     showToast('エラー: ' + e.message, 'error');
     showScreen('mainScreen');
   }
 }
-
-// ===== MOOD & TAGS =====
-function selectMood(mood) {
-  selectedMood = mood;
-  document.querySelectorAll('.mood-row .chip').forEach(c => {
-    c.classList.toggle('selected', c.textContent.includes(mood));
-  });
-}
+  // ===== TAGS =====
 
 function toggleTag(tag) {
   const idx = selectedTags.indexOf(tag);
@@ -1447,11 +1422,7 @@ async function saveToNotion() {
     '時刻': { date: { start: dateStr } },
     '本文': { rich_text: [{ text: { content: currentText.slice(0, 2000) } }] }
   };
-
-  if (selectedMood) props['気分'] = { select: { name: selectedMood } };
   if (selectedTags.length) props['タグ'] = { multi_select: selectedTags.map(t => ({ name: t })) };
-    const memoVal = document.getElementById('memoText') ? document.getElementById('memoText').value.trim() : '';
-    if (memoVal) props['メモ'] = { rich_text: [{ text: { content: memoVal.substring(0, 2000) } }] };;
 
   const body = {
     parent: { database_id: s.notionDbId },
@@ -1485,7 +1456,6 @@ async function saveToNotion() {
           properties: {
             'タスク': { title: [{ text: { content: currentText } }] },
             '日付': { date: { start: dateStr } },
-            'メモ': { rich_text: [{ text: { content: memoVal } }] }
           }
         };
         await fetch('https://notion-proxy.crimson-breeze-6bca.workers.dev', {
