@@ -818,6 +818,46 @@
   </div>
 </div>
 
+<!-- ===== PROCESSING SCREEN ===== -->
+<div id="processingScreen" class="screen">
+  <div class="processing-icon"></div>
+  <div class="processing-label" id="processingLabel">処理中...</div>
+</div>
+
+<!-- ===== SETTINGS SCREEN ===== -->
+<div id="settingsScreen" class="screen">
+  <div class="settings-header">
+    <span class="settings-title">設定</span>
+  </div>
+
+  <div class="settings-section">
+    <div class="settings-section-label">API設定</div>
+    <div class="field-group">
+      <div class="field">
+        <label>Claude API キー</label>
+        <input type="password" id="settingsClaudeKey" placeholder="sk-ant-..." autocomplete="off">
+      </div>
+      <div class="field">
+        <label>Notion データベース ID</label>
+        <input type="text" id="settingsNotionDbId" placeholder="3380f4bd..." autocomplete="off">
+      </div>
+    </div>
+    <button class="btn-primary" style="margin-top:16px" onclick="saveSettingsFromSettings()">保存</button>
+  </div>
+
+  <div class="settings-section">
+    <div class="settings-section-label">固有名詞辞書</div>
+    <div class="dict-section">
+      <div class="dict-entries" id="dictEntries"></div>
+      <div class="dict-input-row">
+        <input type="text" id="dictYomi" placeholder="読み（例：あいらぶ）">
+        <input type="text" id="dictHenkan" placeholder="変換後（例：Ilove）">
+        <button class="btn-dict-add" onclick="addDictEntry()">追加</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ===== BOTTOM NAVIGATION ===== -->
 <div class="bottom-nav">
   <button class="nav-item active" id="navRecord" onclick="switchTab('record')">
@@ -1081,7 +1121,8 @@ function switchTab(tab) {
 
   if (tab === 'record') {
     document.getElementById('navRecord').classList.add('active');
-    showScreen('mainScreen'); else if (tab === 'settings') {
+    showScreen('mainScreen');
+  } else if (tab === 'settings') {
     document.getElementById('navSettings').classList.add('active');
     showScreen('settingsScreen');
   }
