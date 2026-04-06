@@ -806,10 +806,10 @@
   <div class="tag-section">
     <div class="section-label">タグ（複数選択可）</div>
     <div class="tag-row">
-      <button class="chip" onclick="toggleTag('仕事')">仕事</button>
-      <button class="chip" onclick="toggleTag('気づき')">気づき</button>
-      <button class="chip" onclick="toggleTag('ToDo')">✅ ToDo</button>
-      <button class="chip" onclick="toggleTag('その他')">その他</button>
+      <button class="chip" data-tag="仕事" onclick="toggleTag('仕事')">仕事</button>
+      <button class="chip" data-tag="気づき" onclick="toggleTag('気づき')">気づき</button>
+      <button class="chip" data-tag="ToDo" onclick="toggleTag('ToDo')">✅ ToDo</button>
+      <button class="chip" data-tag="その他" onclick="toggleTag('その他')">その他</button>
     </div>
   </div>
   <div class="result-actions">
@@ -1156,15 +1156,35 @@ function initRecognition() {
 
   r.onend = () => {
     if (isRecording) {
-      try { r.start(); } catch(e) {}
+      // interimが残っている場合はfinalに救済してから再起動
+      if (interimTranscript.trim()) {
+        finalTranscript += interimTranscript;
+        interimTranscript = '';
+        updateTranscriptDisplay();
+        updateActionRow();
+      }
+      // 少し間を置いて再起動（連続再起動ループ防止）
+      setTimeout(() => {
+        if (isRecording) {
+          try { r.start(); } catch(e) { /* 既に起動中の場合は無視 */ }
+        }
+      }, 300);
     }
   };
 
   r.onerror = (e) => {
-    if (e.error !== 'no-speech' && e.error !== 'aborted') {
-      showToast('音声認識エラー: ' + e.error, 'error');
-      stopRecording();
+    if (e.error === 'no-speech' || e.error === 'aborted') return;
+    if (e.error === 'network') {
+      // ネットワークエラーは再試行
+      if (isRecording) {
+        setTimeout(() => {
+          if (isRecording) try { r.start(); } catch(err) {}
+        }, 500);
+      }
+      return;
     }
+    showToast('音声認識エラー: ' + e.error, 'error');
+    stopRecording();
   };
 
   return r;
@@ -1375,7 +1395,7 @@ function toggleTag(tag) {
     selectedTags.splice(idx, 1);
   }
   document.querySelectorAll('.tag-row .chip').forEach(c => {
-    c.classList.toggle('selected', selectedTags.includes(c.textContent));
+    c.classList.toggle('selected', selectedTags.includes(c.dataset.tag));
   });
 }
 
