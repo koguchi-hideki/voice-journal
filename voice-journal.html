@@ -1,16 +1,16 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="音声日記">
-<title>音声ジャーナル</title>
-<style>h
+<meta name="apple-mobile-web-app-title" content="é³å£°æ¥è¨">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>é³å£°ã¸ã£ã¼ãã«v3</title>
+<style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;500&family=Noto+Sans+JP:wght@300;400&display=swap');
 
   :root {
@@ -40,6 +40,18 @@
     align-items: center;
     padding: 0;
     overflow-x: hidden;
+    position: relative;
+  }
+
+  .version-badge {
+    position: fixed;
+    bottom: calc(env(safe-area-inset-bottom, 20px) + 64px);
+    right: 16px;
+    font-size: 10px;
+    color: var(--text2);
+    letter-spacing: 0.1em;
+    opacity: 0.5;
+    pointer-events: none;
   }
 
   /* ===== SCREENS ===== */
@@ -50,9 +62,64 @@
     min-height: 100vh;
     min-height: -webkit-fill-available;
     flex-direction: column;
-    padding: env(safe-area-inset-top, 20px) 24px env(safe-area-inset-bottom, 20px);
+    padding: env(safe-area-inset-top, 20px) 24px calc(env(safe-area-inset-bottom, 20px) + 80px) 24px;
+    position: relative;
   }
   .screen.active { display: flex; }
+
+  /* ===== BOTTOM NAVIGATION ===== */
+  .bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 480px;
+    height: calc(64px + env(safe-area-inset-bottom, 20px));
+    background: var(--bg2);
+    border-top: 1px solid var(--bg3);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+    padding-top: 8px;
+    z-index: 1000;
+  }
+
+  .nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    cursor: pointer;
+    padding: 8px;
+    border: none;
+    background: none;
+    color: var(--text2);
+    font-size: 11px;
+    transition: all 0.2s;
+    letter-spacing: 0.05em;
+  }
+
+  .nav-item svg {
+    width: 24px;
+    height: 24px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 1.5;
+    transition: all 0.2s;
+  }
+
+  .nav-item.active {
+    color: var(--accent);
+  }
+
+  .nav-item.active svg {
+    fill: currentColor;
+    stroke: none;
+  }
 
   /* ===== SETUP SCREEN ===== */
   #setupScreen {
@@ -126,6 +193,7 @@
     justify-content: space-between;
     align-items: center;
     padding-top: 12px;
+    margin-bottom: 12px;
   }
   .main-title {
     font-family: 'Noto Serif JP', serif;
@@ -134,13 +202,12 @@
     color: var(--accent);
     letter-spacing: 0.1em;
   }
-  .settings-btn {
-    background: none;
-    border: none;
+
+  .mic-permission-status {
+    font-size: 11px;
     color: var(--text2);
-    cursor: pointer;
-    font-size: 20px;
-    padding: 4px;
+    opacity: 0.6;
+    letter-spacing: 0.05em;
   }
 
   .record-area {
@@ -223,6 +290,13 @@
     gap: 12px;
     padding-bottom: 12px;
   }
+
+  .action-row-three {
+    display: flex;
+    gap: 8px;
+    padding-bottom: 12px;
+  }
+
   .btn-secondary {
     flex: 1;
     background: var(--bg2);
@@ -237,8 +311,26 @@
     text-align: center;
   }
   .btn-secondary:active { opacity: 0.7; }
+
+  .btn-append {
+    flex: 1;
+    background: var(--bg2);
+    border: 1px solid var(--accent2);
+    border-radius: 12px;
+    padding: 14px;
+    color: var(--accent);
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+    letter-spacing: 0.05em;
+  }
+  .btn-append:active { opacity: 0.8; }
+
   .btn-send {
-    flex: 2;
+    flex: 1.5;
     background: var(--accent2);
     border: none;
     border-radius: 12px;
@@ -254,17 +346,262 @@
   .btn-send:active { opacity: 0.8; }
   .btn-send:disabled { opacity: 0.3; cursor: not-allowed; }
 
-  /* ===== PROCESSING SCREEN ===== */
-  #processingScreen { justify-content: center; align-items: center; gap: 24px; }
+  /* ===== HISTORY SCREEN ===== */
+  #historyScreen {
+    justify-content: flex-start;
+  }
 
-  .processing-icon {
-    width: 80px; height: 80px;
+  .history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-top: 12px;
+  }
+
+  .history-title {
+    font-family: 'Noto Serif JP', serif;
+    font-size: 18px;
+    font-weight: 300;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+  }
+
+  .btn-refresh {
+    background: none;
+    border: none;
+    color: var(--text2);
+    cursor: pointer;
+    font-size: 18px;
+    padding: 4px;
+    transition: transform 0.3s;
+  }
+
+  .btn-refresh:active {
+    transform: rotate(180deg);
+  }
+
+  .history-list {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .history-item {
+    background: var(--bg2);
+    border: 1px solid var(--bg3);
+    border-radius: 12px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .history-item:active {
+    background: var(--bg3);
+  }
+
+  .history-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 8px;
+  }
+
+  .history-item-date {
+    font-size: 12px;
+    color: var(--text2);
+    letter-spacing: 0.05em;
+  }
+
+  .history-item-mood {
+    font-size: 16px;
+  }
+
+  .history-item-preview {
+    font-size: 14px;
+    color: var(--text);
+    line-height: 1.6;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  .history-item.expanded .history-item-preview {
+    -webkit-line-clamp: unset;
+    overflow: visible;
+  }
+
+  .history-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    color: var(--text2);
+    font-size: 13px;
+    padding: 40px 20px;
+  }
+
+  .spinner {
+    width: 16px;
+    height: 16px;
     border: 2px solid var(--bg3);
     border-top-color: var(--accent);
     border-radius: 50%;
     animation: spin 1s linear infinite;
   }
+
   @keyframes spin { to { transform: rotate(360deg); } }
+
+  .history-empty {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: var(--text2);
+    font-size: 13px;
+    padding: 40px 20px;
+    text-align: center;
+  }
+
+  /* ===== SETTINGS SCREEN ===== */
+  #settingsScreen {
+    justify-content: flex-start;
+    overflow-y: auto;
+  }
+
+  .settings-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-top: 12px;
+  }
+
+  .settings-title {
+    font-family: 'Noto Serif JP', serif;
+    font-size: 18px;
+    font-weight: 300;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+  }
+
+  .settings-section {
+    margin-bottom: 28px;
+  }
+
+  .settings-section-label {
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    color: var(--accent2);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    font-weight: 400;
+  }
+
+  .dict-section {
+    background: var(--bg2);
+    border-radius: 12px;
+    padding: 16px;
+    border: 1px solid var(--bg3);
+  }
+
+  .dict-entries {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+    max-height: 150px;
+    overflow-y: auto;
+  }
+
+  .dict-chip {
+    padding: 8px 12px;
+    border-radius: 16px;
+    background: var(--bg3);
+    color: var(--text);
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid var(--bg3);
+    position: relative;
+  }
+
+  .dict-chip-delete {
+    cursor: pointer;
+    color: var(--red);
+    font-size: 14px;
+    padding: 0 4px;
+    margin-left: 4px;
+    transition: opacity 0.2s;
+  }
+
+  .dict-chip-delete:active {
+    opacity: 0.6;
+  }
+
+  .dict-input-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .dict-input-row input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--bg3);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 12px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .dict-input-row input:focus {
+    border-color: var(--accent2);
+  }
+
+  .dict-input-row input::placeholder {
+    color: var(--text2);
+    opacity: 0.5;
+  }
+
+  .btn-dict-add {
+    background: var(--accent2);
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    color: var(--text);
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .btn-dict-add:active {
+    opacity: 0.8;
+  }
+
+  /* ===== PROCESSING SCREEN ===== */
+  #processingScreen {
+    justify-content: center;
+    align-items: center;
+    gap: 24px;
+  }
+
+  .processing-icon {
+    width: 80px;
+    height: 80px;
+    border: 2px solid var(--bg3);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
 
   .processing-label {
     font-family: 'Noto Serif JP', serif;
@@ -402,39 +739,37 @@
 </head>
 <body>
 
+<!-- ===== VERSION BADGE ===== -->
+<div class="version-badge">v3.0</div>
+
 <!-- ===== SETUP SCREEN ===== -->
 <div id="setupScreen" class="screen">
   <div class="setup-header">
-    <h1>音声ジャーナル</h1>
-    <p>初回設定を行ってください</p>
-        <p style="font-size:12px;color:#888;margin-top:4px;">v2.3</p>
+    <h1>é³å£°ã¸ã£ã¼ãã«</h1>
+    <p>ååè¨­å®ãè¡ã£ã¦ãã ãã</p>
   </div>
   <div class="field-group">
     <div class="field">
-      <label>Claude API キー</label>
+      <label>Claude API ã­ã¼</label>
       <input type="password" id="claudeKey" placeholder="sk-ant-..." autocomplete="off">
     </div>
     <div class="field">
-      <label>Notion トークン</label>
-      <input type="password" id="notionToken" placeholder="secret_..." autocomplete="off">
-    </div>
-    <div class="field">
-      <label>Notion データベース ID</label>
+      <label>Notion ãã¼ã¿ãã¼ã¹ ID</label>
       <input type="text" id="notionDbId" value="3380f4bd26f68088aab6fcfbb5c260a5" autocomplete="off">
     </div>
   </div>
-  <button class="btn-primary" onclick="saveSettings()">設定を保存して始める</button>
+  <button class="btn-primary" onclick="saveSettings()">è¨­å®ãä¿å­ãã¦å§ãã</button>
 </div>
 
 <!-- ===== MAIN SCREEN ===== -->
 <div id="mainScreen" class="screen">
   <div class="main-header">
-    <span class="main-title">音声ジャーナル</span>
-    <button class="settings-btn" onclick="showScreen('setupScreen')" title="設定">?</button>
+    <span class="main-title">é³å£°ã¸ã£ã¼ãã«</span>
+    <div class="mic-permission-status" id="micPermissionStatus"></div>
   </div>
 
   <div class="record-area">
-    <div class="status-text" id="statusText">タップして録音開始</div>
+    <div class="status-text" id="statusText">ã¿ãããã¦é²é³éå§</div>
     <button class="mic-btn" id="micBtn" onclick="toggleRecording()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
         <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
@@ -444,63 +779,129 @@
       </svg>
     </button>
     <div class="transcript-box" id="transcriptBox">
-      <span class="transcript-placeholder" id="transcriptPlaceholder">話した内容がここに表示されます</span>
+      <span class="transcript-placeholder" id="transcriptPlaceholder">è©±ããåå®¹ãããã«è¡¨ç¤ºããã¾ã</span>
       <span id="transcriptFinal"></span>
       <span id="transcriptInterim" class="interim"></span>
     </div>
   </div>
 
-  <div class="action-row">
-    <button class="btn-secondary" onclick="clearTranscript()">クリア</button>
-    <button class="btn-send" id="sendBtn" onclick="processAndSave()" disabled>AIで整形して保存</button>
+  <div id="mainActionRow" class="action-row">
+    <button class="btn-secondary" onclick="clearTranscript()">ã¯ãªã¢</button>
+    <button class="btn-send" id="sendBtn" onclick="processAndSave()" disabled>AIã§æ´å½¢ãã¦ä¿å­</button>
   </div>
+</div>
+
+<!-- ===== HISTORY SCREEN ===== -->
+<div id="historyScreen" class="screen">
+  <div class="history-header">
+    <span class="history-title">å±¥æ­´</span>
+    <button class="btn-refresh" id="refreshBtn" onclick="loadHistory()" title="æ´æ°">â³</button>
+  </div>
+
+  <div class="history-list" id="historyList">
+    <div class="history-loading">
+      <div class="spinner"></div>
+      <span>èª­ã¿è¾¼ã¿ä¸­...</span>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SETTINGS SCREEN ===== -->
+<div id="settingsScreen" class="screen">
+  <div class="settings-header">
+    <span class="settings-title">è¨­å®</span>
+  </div>
+
+  <div class="settings-section">
+    <div class="settings-section-label">API ã­ã¼</div>
+    <div class="field-group">
+      <div class="field">
+        <label>Claude API ã­ã¼</label>
+        <input type="password" id="settingsClaudeKey" placeholder="sk-ant-..." autocomplete="off">
+      </div>
+      <div class="field">
+        <label>Notion ãã¼ã¿ãã¼ã¹ ID</label>
+        <input type="text" id="settingsNotionDbId" autocomplete="off">
+      </div>
+    </div>
+  </div>
+
+  <div class="settings-section">
+    <div class="settings-section-label">ã¦ã¼ã¶ã¼è¾æ¸</div>
+    <div class="dict-section">
+      <div class="dict-entries" id="dictEntries"></div>
+      <div class="dict-input-row">
+        <input type="text" id="dictYomi" placeholder="èª­ã¿ï¼ã²ãããªï¼" autocomplete="off">
+        <input type="text" id="dictHenkan" placeholder="å¤æå¾" autocomplete="off">
+        <button class="btn-dict-add" onclick="addDictEntry()">è¿½å </button>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-primary" onclick="saveSettingsFromSettings()">è¨­å®ãä¿å­</button>
 </div>
 
 <!-- ===== PROCESSING SCREEN ===== -->
 <div id="processingScreen" class="screen">
   <div class="processing-icon"></div>
-  <div class="processing-label" id="processingLabel">AIが整形中...</div>
+  <div class="processing-label" id="processingLabel">AIãæ´å½¢ä¸­...</div>
 </div>
 
 <!-- ===== RESULT SCREEN ===== -->
 <div id="resultScreen" class="screen">
   <div class="result-header">
-    <span class="result-title">整形結果</span>
+    <span class="result-title">æ´å½¢çµæ</span>
     <span class="result-time" id="resultTime"></span>
   </div>
 
   <div class="result-body">
     <textarea id="resultText" spellcheck="false" autocorrect="off" autocapitalize="off"></textarea>
   </div>
-  <div class="edit-hint">? タップして編集できます</div>
+  <div class="edit-hint">â ã¿ãããã¦ç·¨éã§ãã¾ã</div>
 
   <div class="mood-section">
-    <div class="section-label">気分</div>
+    <div class="section-label">æ°å</div>
     <div class="mood-row">
-      <button class="chip" onclick="selectMood('良い')">  良い</button>
-      <button class="chip" onclick="selectMood('普通')">  普通</button>
-      <button class="chip" onclick="selectMood('悪い')">  悪い</button>
+      <button class="chip" onclick="selectMood('è¯ã')">ð è¯ã</button>
+      <button class="chip" onclick="selectMood('æ®é')">ð æ®é</button>
+      <button class="chip" onclick="selectMood('æªã')">ð æªã</button>
     </div>
   </div>
 
   <div class="tag-section">
-    <div class="section-label">タグ（複数選択可）</div>
+    <div class="section-label">ã¿ã°ï¼è¤æ°é¸æå¯ï¼</div>
     <div class="tag-row">
-      <button class="chip" onclick="toggleTag('家族')">家族</button>
-      <button class="chip" onclick="toggleTag('健康')">健康</button>
-      <button class="chip" onclick="toggleTag('仕事')">仕事</button>
-      <button class="chip" onclick="toggleTag('趣味')">趣味</button>
-      <button class="chip" onclick="toggleTag('気づき')">気づき</button>
-      <button class="chip" onclick="toggleTag('山形')">山形</button>
-      <button class="chip" onclick="toggleTag('食事')">食事</button>
-      <button class="chip" onclick="toggleTag('外出')">外出</button>
+      <button class="chip" onclick="toggleTag('å®¶æ')">å®¶æ</button>
+      <button class="chip" onclick="toggleTag('å¥åº·')">å¥åº·</button>
+      <button class="chip" onclick="toggleTag('ä»äº')">ä»äº</button>
+      <button class="chip" onclick="toggleTag('è¶£å³')">è¶£å³</button>
+      <button class="chip" onclick="toggleTag('æ°ã¥ã')">æ°ã¥ã</button>
+      <button class="chip" onclick="toggleTag('å±±å½¢')">å±±å½¢</button>
+      <button class="chip" onclick="toggleTag('é£äº')">é£äº</button>
+      <button class="chip" onclick="toggleTag('å¤åº')">å¤åº</button>
     </div>
   </div>
 
   <div class="result-actions">
-    <button class="btn-secondary" style="flex:1" onclick="showScreen('mainScreen')">戻る</button>
-    <button class="btn-save" onclick="saveToNotion()">Notionに保存</button>
+    <button class="btn-secondary" style="flex:1" onclick="showScreen('mainScreen')">æ»ã</button>
+    <button class="btn-save" onclick="saveToNotion()">Notionã«ä¿å­</button>
   </div>
+</div>
+
+<!-- ===== BOTTOM NAVIGATION ===== -->
+<div class="bottom-nav">
+  <button class="nav-item active" id="navRecord" onclick="switchTab('record')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+    <span>é²é³</span>
+  </button>
+  <button class="nav-item" id="navHistory" onclick="switchTab('history')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    <span>å±¥æ­´</span>
+  </button>
+  <button class="nav-item" id="navSettings" onclick="switchTab('settings')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    <span>è¨­å®</span>
+  </button>
 </div>
 
 <!-- Toast -->
@@ -515,140 +916,217 @@ let interimTranscript = '';
 let selectedMood = '';
 let selectedTags = [];
 let formattedText = '';
+let micPermissionGranted = false;
 
 // ===== DICTIONARY =====
 const DICTIONARY = [
-  {r:'しょうへい',c:'翔平'},{r:'まな',c:'真奈'},{r:'そうた',c:'想太'},
-  {r:'ゆき',c:'由貴'},{r:'ひでき',c:'秀喜'},
-  {r:'あいらぶ',c:'株式会社Ilove'},{r:'いらぶ',c:'Ilove'},
-  {r:'やまがたし',c:'山形市'},{r:'やまがたけん',c:'山形県'},
-  {r:'あいおいちょう',c:'相生町'},{r:'あおた',c:'青田'},{r:'あおたみなみ',c:'青田南'},
-  {r:'あおの',c:'青野'},{r:'あおやぎ',c:'青柳'},{r:'あかしどう',c:'明石堂'},
-  {r:'あかねがおか',c:'あかねケ丘'},{r:'あけぼの',c:'あけぼの'},
-  {r:'あこやちょう',c:'あこや町'},{r:'あさひがおか',c:'旭が丘'},
-  {r:'あさひまち',c:'あさひ町'},{r:'あずまちょう',c:'あずま町'},
-  {r:'あらたてちょう',c:'荒楯町'},{r:'いいざわ',c:'飯沢'},{r:'いいだ',c:'飯田'},
-  {r:'いいだにし',c:'飯田西'},{r:'いいづかぐち',c:'飯塚口'},{r:'いいづかまち',c:'飯塚町'},
-  {r:'いしぜき',c:'石関'},{r:'いすず',c:'五十鈴'},{r:'いずみちょう',c:'泉町'},
-  {r:'いつかまち',c:'五日町'},{r:'いまづか',c:'今塚'},{r:'いものまち',c:'鋳物町'},
-  {r:'いわなみ',c:'岩波'},{r:'いんやくまち',c:'印役町'},{r:'うちおもて',c:'内表'},
-  {r:'うちおもてひがし',c:'内表東'},{r:'うめのきまえ',c:'梅野木前'},
-  {r:'うるしやま',c:'漆山'},{r:'うわえ',c:'上江'},{r:'うわまち',c:'上町'},
-  {r:'えまた',c:'江俣'},{r:'えんのうじまち',c:'円応寺町'},{r:'おおてまち',c:'大手町'},
-  {r:'おおみちばた',c:'大道端'},{r:'おおもり',c:'大森'},{r:'おきまち',c:'沖町'},
-  {r:'おだち',c:'小立'},{r:'おちあいまち',c:'落合町'},{r:'おてさく',c:'御手作'},
-  {r:'おもてざおう',c:'表蔵王'},{r:'かえしょ',c:'替所'},{r:'かごた',c:'篭田'},
-  {r:'かざま',c:'風間'},{r:'かしわぐら',c:'柏倉'},{r:'かじょうまち',c:'霞城町'},
-  {r:'かすがちょう',c:'春日町'},{r:'かすみちょう',c:'香澄町'},{r:'かたやち',c:'片谷地'},
-  {r:'かないしだ',c:'金石田'},{r:'かみくぬぎざわ',c:'上椹沢'},{r:'かみさくらだ',c:'上桜田'},
-  {r:'かみそりだ',c:'上反田'},{r:'かみひがしやま',c:'上東山'},{r:'かみほうざわ',c:'上宝沢'},
-  {r:'かみやなぎ',c:'上柳'},{r:'かみやんべまち',c:'上山家町'},{r:'かんのう',c:'神尾'},
-  {r:'きたえまた',c:'北江俣'},{r:'きただ',c:'北田'},{r:'きたまち',c:'北町'},
-  {r:'きたやまがた',c:'北山形'},{r:'きのみちょう',c:'木の実町'},{r:'きのめだ',c:'木ノ目田'},
-  {r:'きよずみまち',c:'清住町'},{r:'きりはた',c:'切畑'},{r:'ぎょうさい',c:'行才'},
-  {r:'くぬぎざわにし',c:'くぬぎざわ西'},{r:'くぼた',c:'久保田'},{r:'くろさわ',c:'黒沢'},
-  {r:'こうなん',c:'江南'},{r:'こがね',c:'黄金'},{r:'こしょうまち',c:'小姓町'},
-  {r:'こじらかわまち',c:'小白川町'},{r:'ことぶきちょう',c:'寿町'},{r:'こにだまち',c:'小荷駄町'},
-  {r:'こもいし',c:'こも石'},{r:'ごみょう',c:'後明'},{r:'さいわいちょう',c:'幸町'},
-  {r:'さおとめ',c:'早乙女'},{r:'さかいだまち',c:'境田町'},{r:'さかえばら',c:'栄原'},
-  {r:'さかなまち',c:'肴町'},{r:'さくらがおか',c:'桜ケ丘'},{r:'さくらだにし',c:'桜田西'},
-  {r:'さくらだひがし',c:'桜田東'},{r:'さくらだみなみ',c:'桜田南'},{r:'さくらちょう',c:'桜町'},
-  {r:'さんしゃ',c:'三社'},{r:'ざおういいだ',c:'蔵王飯田'},{r:'ざおううわの',c:'蔵王上野'},
-  {r:'ざおうおんせん',c:'蔵王温泉'},{r:'ざおうなりさわ',c:'蔵王成沢'},
-  {r:'ざおうにしなりさわ',c:'蔵王西成沢'},{r:'ざおうのぎわ',c:'蔵王野際'},
-  {r:'ざおうはんごう',c:'蔵王半郷'},{r:'ざおうほった',c:'蔵王堀田'},
-  {r:'ざおうまつがおか',c:'蔵王松ケ丘'},{r:'ざおうみなみなりさわ',c:'蔵王南成沢'},
-  {r:'ざおうやまだ',c:'蔵王山田'},{r:'しかま',c:'志鎌'},{r:'しとだ',c:'志戸田'},
-  {r:'しぶえ',c:'渋江'},{r:'しま',c:'島'},{r:'しまきた',c:'嶋北'},{r:'しまみなみ',c:'嶋南'},
-  {r:'しもくぬぎざわ',c:'下椹沢'},{r:'しもじょうまち',c:'下条町'},{r:'しもそりだ',c:'下反田'},
-  {r:'しもだ',c:'下田'},{r:'しもひがしやま',c:'下東山'},{r:'しもほうざわ',c:'下宝沢'},
-  {r:'しもやなぎ',c:'下柳'},{r:'しもやんべまち',c:'下山家町'},{r:'しゃかどう',c:'釈迦堂'},
-  {r:'しらかわ',c:'白川'},{r:'しろにしまち',c:'城西町'},{r:'しろもり',c:'城森'},
-  {r:'しんかい',c:'新開'},{r:'じゅうもんじ',c:'十文字'},{r:'じょうなんまち',c:'城南町'},
-  {r:'じょうほくまち',c:'城北町'},{r:'じょうみょうじ',c:'常明寺'},{r:'じんば',c:'陣場'},
-  {r:'じんばしんでん',c:'陣場新田'},{r:'じんばみなみ',c:'陣場南'},{r:'すえひろちょう',c:'末広町'},
-  {r:'すげさわ',c:'菅沢'},{r:'すげさわのおか',c:'すげさわの丘'},{r:'すしあらい',c:'鮨洗'},
-  {r:'すずかわまち',c:'鈴川町'},{r:'すなだ',c:'砂田'},{r:'すなづか',c:'砂塚'},
-  {r:'すわまち',c:'諏訪町'},{r:'せきざわ',c:'関沢'},{r:'せなみ',c:'瀬波'},
-  {r:'せんがり',c:'千刈'},{r:'せんごく',c:'千石'},{r:'せんじゅどう',c:'千手堂'},
-  {r:'そうつきしんちょう',c:'双月新町'},{r:'そうつきまち',c:'双月町'},{r:'そりまち',c:'反町'},
-  {r:'たかぎ',c:'高木'},{r:'たかさわ',c:'高沢'},{r:'たかだ',c:'高田'},{r:'たかどう',c:'高堂'},
-  {r:'たかはらまち',c:'高原町'},{r:'たきのひら',c:'滝平'},{r:'たちやがわ',c:'立谷川'},
-  {r:'だいしどう',c:'大師堂'},{r:'だいのめ',c:'大野目'},{r:'だいのめまち',c:'大野目町'},
-  {r:'だてじょう',c:'伊達城'},{r:'だんのまえ',c:'檀野前'},{r:'ちかだ',c:'近田'},
-  {r:'ちとせ',c:'千歳'},{r:'ちよだ',c:'千代田'},{r:'つがねざわ',c:'津金沢'},
-  {r:'つちざか',c:'土坂'},{r:'つちどい',c:'土樋'},{r:'てっぽうまち',c:'鉄砲町'},
-  {r:'てらにし',c:'寺西'},{r:'てんじんだい',c:'天神台'},{r:'てんじんちょう',c:'天神町'},
-  {r:'とうかまち',c:'十日町'},{r:'とうじやしき',c:'藤治屋敷'},{r:'とうのまえ',c:'塔の前'},
-  {r:'とがみだい',c:'富神台'},{r:'とがみまえ',c:'富神前'},{r:'とみのじゅう',c:'富の中'},
-  {r:'とよごし',c:'樋越'},{r:'とりいがおか',c:'鳥居ケ丘'},{r:'どうまち',c:'銅町'},
-  {r:'どうやぐち',c:'銅谷口'},{r:'どめき',c:'百目鬼'},{r:'なかさくらだ',c:'中桜田'},
-  {r:'なかざと',c:'中里'},{r:'なかぬま',c:'中沼'},{r:'なかの',c:'中野'},
-  {r:'なかのめ',c:'中野目'},{r:'ながなわしろ',c:'長苗代'},{r:'ながまち',c:'長町'},
-  {r:'ななうら',c:'七浦'},{r:'ななじゅうがり',c:'七十刈'},{r:'なぬかまち',c:'七日町'},
-  {r:'なみやなぎ',c:'並柳'},{r:'なめかわ',c:'滑川'},{r:'なりさわにし',c:'成沢西'},
-  {r:'なりやす',c:'成安'},{r:'なんえいちょう',c:'南栄町'},{r:'にいだ',c:'二位田'},
-  {r:'にいやま',c:'新山'},{r:'にしえまた',c:'西江俣'},{r:'にしきちょう',c:'錦町'},
-  {r:'にしごし',c:'西越'},{r:'にしざき',c:'西崎'},{r:'にした',c:'西田'},
-  {r:'にしなかの',c:'西中野'},{r:'にしはら',c:'西原'},{r:'にしみだ',c:'西見田'},
-  {r:'ぬまぎ',c:'沼木'},{r:'ぬまのべまち',c:'沼の辺町'},{r:'はいづか',c:'灰塚'},
-  {r:'はくさん',c:'白山'},{r:'はぐろどう',c:'羽黒堂'},{r:'はせどう',c:'長谷堂'},
-  {r:'はたごまち',c:'旅篭町'},{r:'はちまんまえ',c:'八幡前'},{r:'はちもり',c:'八森'},
-  {r:'はなおか',c:'花岡'},{r:'はなたて',c:'花楯'},{r:'はまざき',c:'浜崎'},
-  {r:'ばじょうだい',c:'馬上台'},{r:'ひがしあおた',c:'東青田'},{r:'ひがしかごのまち',c:'東篭野町'},
-  {r:'ひがししとだ',c:'東志戸田'},{r:'ひがしだ',c:'東田'},{r:'ひがしにいだ',c:'東二位田'},
-  {r:'ひがしはらまち',c:'東原町'},{r:'ひがしはんごう',c:'東半郷'},{r:'ひがしふるだて',c:'東古館'},
-  {r:'ひがしやまがた',c:'東山形'},{r:'ひのきちょう',c:'桧町'},{r:'ひらくぼ',c:'平久保'},
-  {r:'ひらしみず',c:'平清水'},{r:'ふかまち',c:'深町'},{r:'ふじさわがわ',c:'藤沢川'},
-  {r:'ふたばちょう',c:'双葉町'},{r:'ふなまち',c:'船町'},{r:'ふるだて',c:'古館'},
-  {r:'へいだ',c:'平田'},{r:'ほづみ',c:'穂積'},{r:'ほんちょう',c:'本町'},
-  {r:'ぼうばらまち',c:'防原町'},{r:'まえあかし',c:'前明石'},{r:'まえたまち',c:'前田町'},
-  {r:'まつえい',c:'松栄'},{r:'まつなみ',c:'松波'},{r:'まつばら',c:'松原'},
-  {r:'まつみちょう',c:'松見町'},{r:'まつやま',c:'松山'},{r:'まみがさき',c:'馬見ケ崎'},
-  {r:'みさき',c:'見崎'},{r:'みさきかわら',c:'見崎川原'},{r:'みっかまち',c:'三日町'},
-  {r:'みどりちょう',c:'緑町'},{r:'みなみいちばんちょう',c:'南一番町'},
-  {r:'みなみにばんちょう',c:'南二番町'},{r:'みなみさんばんちょう',c:'南三番町'},
-  {r:'みなみよんばんちょう',c:'南四番町'},{r:'みなみいしぜき',c:'南石関'},
-  {r:'みなみしとだ',c:'南志戸田'},{r:'みなみだて',c:'南館'},{r:'みなみだてにし',c:'南館西'},
-  {r:'みなみはらまち',c:'南原町'},{r:'みなみはんごう',c:'南半郷'},{r:'みなみまつばら',c:'南松原'},
-  {r:'みのりがおか',c:'みのりが丘'},{r:'みはたちょう',c:'美畑町'},
-  {r:'みはらしのおか',c:'みはらしの丘'},{r:'みやうら',c:'宮浦'},{r:'みやまち',c:'宮町'},
-  {r:'みょうけんじ',c:'妙見寺'},{r:'みょうじんまえ',c:'明神前'},{r:'むいかまち',c:'六日町'},
-  {r:'むかいしんでん',c:'向新田'},{r:'むらきざわ',c:'村木沢'},{r:'もとき',c:'元木'},
-  {r:'もんでん',c:'門伝'},{r:'やがしわ',c:'谷柏'},{r:'やくしまち',c:'薬師町'},
-  {r:'やちまえ',c:'谷地前'},{r:'やなぎだ',c:'柳田'},{r:'やまでら',c:'山寺'},
-  {r:'やよい',c:'やよい'},{r:'やんべほんちょう',c:'山家本町'},{r:'やんべまち',c:'山家町'},
-  {r:'ようかまち',c:'八日町'},{r:'よこい',c:'横井'},{r:'よこみち',c:'横道'},
-  {r:'よしざわ',c:'芳沢'},{r:'よしの',c:'芳野'},{r:'よしのじゅく',c:'吉野宿'},
-  {r:'よしはら',c:'吉原'},{r:'よしはらみなみ',c:'吉原南'},
-  {r:'りゅうつうせんたー',c:'流通センター'},{r:'わかぎ',c:'若木'},
-  {r:'わかばちょう',c:'若葉町'},{r:'わかみや',c:'若宮'},{r:'わごうまち',c:'和合町'}
+  {r:'ãããã¸ã',c:'ç¿å¹³'},{r:'ã¾ãª',c:'çå¥'},{r:'ããã',c:'æ³å¤ª'},
+  {r:'ãã',c:'ç±è²´'},{r:'ã²ã§ã',c:'ç§å'},
+  {r:'ãããã¶',c:'æ ªå¼ä¼ç¤¾Ilove'},{r:'ããã¶',c:'Ilove'},
+  {r:'ãã¾ããã',c:'å±±å½¢å¸'},{r:'ãã¾ãããã',c:'å±±å½¢ç'},
+  {r:'ããããã¡ãã',c:'ç¸ççº'},{r:'ããã',c:'éç°'},{r:'ãããã¿ãªã¿',c:'éç°å'},
+  {r:'ããã®',c:'éé'},{r:'ãããã',c:'éæ³'},{r:'ãããã©ã',c:'æç³å '},
+  {r:'ããã­ããã',c:'ããã­ã±ä¸'},{r:'ããã¼ã®',c:'ããã¼ã®'},
+  {r:'ãããã¡ãã',c:'ãããçº'},{r:'ããã²ããã',c:'æ­ãä¸'},
+  {r:'ããã²ã¾ã¡',c:'ããã²çº'},{r:'ããã¾ã¡ãã',c:'ããã¾çº'},
+  {r:'ãããã¦ã¡ãã',c:'èæ¥¯çº'},{r:'ãããã',c:'é£¯æ²¢'},{r:'ããã ',c:'é£¯ç°'},
+  {r:'ããã ã«ã',c:'é£¯ç°è¥¿'},{r:'ããã¥ããã¡',c:'é£¯å¡å£'},{r:'ããã¥ãã¾ã¡',c:'é£¯å¡çº'},
+  {r:'ãããã',c:'ç³é¢'},{r:'ããã',c:'äºåé´'},{r:'ããã¿ã¡ãã',c:'æ³çº'},
+  {r:'ãã¤ãã¾ã¡',c:'äºæ¥çº'},{r:'ãã¾ã¥ã',c:'ä»å¡'},{r:'ããã®ã¾ã¡',c:'é³ç©çº'},
+  {r:'ãããªã¿',c:'å²©æ³¢'},{r:'ããããã¾ã¡',c:'å°å½¹çº'},{r:'ãã¡ããã¦',c:'åè¡¨'},
+  {r:'ãã¡ããã¦ã²ãã',c:'åè¡¨æ±'},{r:'ããã®ãã¾ã',c:'æ¢éæ¨å'},
+  {r:'ããããã¾',c:'æ¼å±±'},{r:'ããã',c:'ä¸æ±'},{r:'ããã¾ã¡',c:'ä¸çº'},
+  {r:'ãã¾ã',c:'æ±ä¿£'},{r:'ããã®ããã¾ã¡',c:'åå¿å¯ºçº'},{r:'ããã¦ã¾ã¡',c:'å¤§æçº'},
+  {r:'ããã¿ã¡ã°ã',c:'å¤§éç«¯'},{r:'ãããã',c:'å¤§æ£®'},{r:'ããã¾ã¡',c:'æ²çº'},
+  {r:'ãã ã¡',c:'å°ç«'},{r:'ãã¡ããã¾ã¡',c:'è½åçº'},{r:'ãã¦ãã',c:'å¾¡æä½'},
+  {r:'ããã¦ããã',c:'è¡¨èµç'},{r:'ãããã',c:'æ¿æ'},{r:'ããã',c:'ç¯­ç°'},
+  {r:'ããã¾',c:'é¢¨é'},{r:'ããããã',c:'æå'},{r:'ããããã¾ã¡',c:'éåçº'},
+  {r:'ãããã¡ãã',c:'æ¥æ¥çº'},{r:'ããã¿ã¡ãã',c:'é¦æ¾çº'},{r:'ãããã¡',c:'çè°·å°'},
+  {r:'ããªããã ',c:'éç³ç°'},{r:'ãã¿ãã¬ããã',c:'ä¸æ¤¹æ²¢'},{r:'ãã¿ãããã ',c:'ä¸æ¡ç°'},
+  {r:'ãã¿ããã ',c:'ä¸åç°'},{r:'ãã¿ã²ãããã¾',c:'ä¸æ±å±±'},{r:'ãã¿ã»ããã',c:'ä¸å®æ²¢'},
+  {r:'ãã¿ããªã',c:'ä¸æ³'},{r:'ãã¿ããã¹ã¾ã¡',c:'ä¸å±±å®¶çº'},{r:'ããã®ã',c:'ç¥å°¾'},
+  {r:'ãããã¾ã',c:'åæ±ä¿£'},{r:'ããã ',c:'åç°'},{r:'ããã¾ã¡',c:'åçº'},
+  {r:'ãããã¾ãã',c:'åå±±å½¢'},{r:'ãã®ã¿ã¡ãã',c:'æ¨ã®å®çº'},{r:'ãã®ãã ',c:'æ¨ãç®ç°'},
+  {r:'ãããã¿ã¾ã¡',c:'æ¸ä½çº'},{r:'ããã¯ã',c:'åç'},{r:'ããããã',c:'è¡æ'},
+  {r:'ãã¬ãããã«ã',c:'ãã¬ãããè¥¿'},{r:'ãã¼ã',c:'ä¹ä¿ç°'},{r:'ãããã',c:'é»æ²¢'},
+  {r:'ãããªã',c:'æ±å'},{r:'ããã­',c:'é»é'},{r:'ããããã¾ã¡',c:'å°å§çº'},
+  {r:'ãããããã¾ã¡',c:'å°ç½å·çº'},{r:'ãã¨ã¶ãã¡ãã',c:'å¯¿çº'},{r:'ãã«ã ã¾ã¡',c:'å°è·é§çº'},
+  {r:'ãããã',c:'ããç³'},{r:'ãã¿ãã',c:'å¾æ'},{r:'ããããã¡ãã',c:'å¹¸çº'},
+  {r:'ããã¨ã',c:'æ©ä¹å¥³'},{r:'ãããã ã¾ã¡',c:'å¢ç°çº'},{r:'ãããã°ã',c:'æ å'},
+  {r:'ãããªã¾ã¡',c:'è´çº'},{r:'ãããããã',c:'æ¡ã±ä¸'},{r:'ãããã ã«ã',c:'æ¡ç°è¥¿'},
+  {r:'ãããã ã²ãã',c:'æ¡ç°æ±'},{r:'ãããã ã¿ãªã¿',c:'æ¡ç°å'},{r:'ãããã¡ãã',c:'æ¡çº'},
+  {r:'ãããã',c:'ä¸ç¤¾'},{r:'ãããããã ',c:'èµçé£¯ç°'},{r:'ãããããã®',c:'èµçä¸é'},
+  {r:'ããããããã',c:'èµçæ¸©æ³'},{r:'ããããªããã',c:'èµçææ²¢'},
+  {r:'ãããã«ããªããã',c:'èµçè¥¿ææ²¢'},{r:'ãããã®ãã',c:'èµçéé'},
+  {r:'ãããã¯ããã',c:'èµçåé·'},{r:'ãããã»ã£ã',c:'èµçå ç°'},
+  {r:'ãããã¾ã¤ããã',c:'èµçæ¾ã±ä¸'},{r:'ãããã¿ãªã¿ãªããã',c:'èµçåææ²¢'},
+  {r:'ããããã¾ã ',c:'èµçå±±ç°'},{r:'ããã¾',c:'å¿é'},{r:'ãã¨ã ',c:'å¿æ¸ç°'},
+  {r:'ãã¶ã',c:'æ¸æ±'},{r:'ãã¾',c:'å³¶'},{r:'ãã¾ãã',c:'å¶å'},{r:'ãã¾ã¿ãªã¿',c:'å¶å'},
+  {r:'ãããã¬ããã',c:'ä¸æ¤¹æ²¢'},{r:'ãããããã¾ã¡',c:'ä¸æ¡çº'},{r:'ããããã ',c:'ä¸åç°'},
+  {r:'ããã ',c:'ä¸ç°'},{r:'ããã²ãããã¾',c:'ä¸æ±å±±'},{r:'ããã»ããã',c:'ä¸å®æ²¢'},
+  {r:'ããããªã',c:'ä¸æ³'},{r:'ããããã¹ã¾ã¡',c:'ä¸å±±å®¶çº'},{r:'ãããã©ã',c:'éè¿¦å '},
+  {r:'ãããã',c:'ç½å·'},{r:'ããã«ãã¾ã¡',c:'åè¥¿çº'},{r:'ãããã',c:'åæ£®'},
+  {r:'ãããã',c:'æ°é'},{r:'ãããããã',c:'åæå­'},{r:'ããããªãã¾ã¡',c:'ååçº'},
+  {r:'ãããã»ãã¾ã¡',c:'ååçº'},{r:'ãããã¿ããã',c:'å¸¸æå¯º'},{r:'ããã°',c:'é£å ´'},
+  {r:'ããã°ããã§ã',c:'é£å ´æ°ç°'},{r:'ããã°ã¿ãªã¿',c:'é£å ´å'},{r:'ããã²ãã¡ãã',c:'æ«åºçº'},
+  {r:'ãããã',c:'èæ²¢'},{r:'ããããã®ãã',c:'ããããã®ä¸'},{r:'ããããã',c:'é®¨æ´'},
+  {r:'ããããã¾ã¡',c:'é´å·çº'},{r:'ããªã ',c:'ç ç°'},{r:'ããªã¥ã',c:'ç å¡'},
+  {r:'ããã¾ã¡',c:'è«è¨ªçº'},{r:'ãããã',c:'é¢æ²¢'},{r:'ããªã¿',c:'ç¬æ³¢'},
+  {r:'ãããã',c:'åå'},{r:'ãããã',c:'åç³'},{r:'ããããã©ã',c:'åæå '},
+  {r:'ããã¤ãããã¡ãã',c:'åææ°çº'},{r:'ããã¤ãã¾ã¡',c:'åæçº'},{r:'ããã¾ã¡',c:'åçº'},
+  {r:'ããã',c:'é«æ¨'},{r:'ãããã',c:'é«æ²¢'},{r:'ããã ',c:'é«ç°'},{r:'ããã©ã',c:'é«å '},
+  {r:'ããã¯ãã¾ã¡',c:'é«åçº'},{r:'ããã®ã²ã',c:'æ»å¹³'},{r:'ãã¡ããã',c:'ç«è°·å·'},
+  {r:'ã ããã©ã',c:'å¤§å¸«å '},{r:'ã ãã®ã',c:'å¤§éç®'},{r:'ã ãã®ãã¾ã¡',c:'å¤§éç®çº'},
+  {r:'ã ã¦ããã',c:'ä¼éå'},{r:'ã ãã®ã¾ã',c:'æªéå'},{r:'ã¡ãã ',c:'è¿ç°'},
+  {r:'ã¡ã¨ã',c:'åæ­³'},{r:'ã¡ãã ',c:'åä»£ç°'},{r:'ã¤ãã­ãã',c:'æ´¥éæ²¢'},
+  {r:'ã¤ã¡ãã',c:'åå'},{r:'ã¤ã¡ã©ã',c:'åæ¨'},{r:'ã¦ã£ã½ãã¾ã¡',c:'éç ²çº'},
+  {r:'ã¦ãã«ã',c:'å¯ºè¥¿'},{r:'ã¦ãããã ã',c:'å¤©ç¥å°'},{r:'ã¦ãããã¡ãã',c:'å¤©ç¥çº'},
+  {r:'ã¨ããã¾ã¡',c:'åæ¥çº'},{r:'ã¨ããããã',c:'è¤æ²»å±æ·'},{r:'ã¨ãã®ã¾ã',c:'å¡ã®å'},
+  {r:'ã¨ãã¿ã ã',c:'å¯ç¥å°'},{r:'ã¨ãã¿ã¾ã',c:'å¯ç¥å'},{r:'ã¨ã¿ã®ããã',c:'å¯ã®ä¸­'},
+  {r:'ã¨ããã',c:'æ¨è¶'},{r:'ã¨ããããã',c:'é³¥å±ã±ä¸'},{r:'ã©ãã¾ã¡',c:'éçº'},
+  {r:'ã©ãããã¡',c:'éè°·å£'},{r:'ã©ãã',c:'ç¾ç®é¬¼'},{r:'ãªããããã ',c:'ä¸­æ¡ç°'},
+  {r:'ãªããã¨',c:'ä¸­é'},{r:'ãªãã¬ã¾',c:'ä¸­æ²¼'},{r:'ãªãã®',c:'ä¸­é'},
+  {r:'ãªãã®ã',c:'ä¸­éç®'},{r:'ãªããªããã',c:'é·èä»£'},{r:'ãªãã¾ã¡',c:'é·çº'},
+  {r:'ãªãªãã',c:'ä¸æµ¦'},{r:'ãªãªããããã',c:'ä¸åå'},{r:'ãªã¬ãã¾ã¡',c:'ä¸æ¥çº'},
+  {r:'ãªã¿ããªã',c:'ä¸¦æ³'},{r:'ãªããã',c:'æ»å·'},{r:'ãªãããã«ã',c:'ææ²¢è¥¿'},
+  {r:'ãªããã',c:'æå®'},{r:'ãªãããã¡ãã',c:'åæ çº'},{r:'ã«ãã ',c:'äºä½ç°'},
+  {r:'ã«ããã¾',c:'æ°å±±'},{r:'ã«ããã¾ã',c:'è¥¿æ±ä¿£'},{r:'ã«ããã¡ãã',c:'é¦çº'},
+  {r:'ã«ããã',c:'è¥¿è¶'},{r:'ã«ããã',c:'è¥¿å´'},{r:'ã«ãã',c:'è¥¿ç°'},
+  {r:'ã«ããªãã®',c:'è¥¿ä¸­é'},{r:'ã«ãã¯ã',c:'è¥¿å'},{r:'ã«ãã¿ã ',c:'è¥¿è¦ç°'},
+  {r:'ã¬ã¾ã',c:'æ²¼æ¨'},{r:'ã¬ã¾ã®ã¹ã¾ã¡',c:'æ²¼ã®è¾ºçº'},{r:'ã¯ãã¥ã',c:'ç°å¡'},
+  {r:'ã¯ããã',c:'ç½å±±'},{r:'ã¯ããã©ã',c:'ç¾½é»å '},{r:'ã¯ãã©ã',c:'é·è°·å '},
+  {r:'ã¯ããã¾ã¡',c:'æç¯­çº'},{r:'ã¯ã¡ã¾ãã¾ã',c:'å«å¹¡å'},{r:'ã¯ã¡ãã',c:'å«æ£®'},
+  {r:'ã¯ãªãã',c:'è±å²¡'},{r:'ã¯ãªãã¦',c:'è±æ¥¯'},{r:'ã¯ã¾ãã',c:'æµå´'},
+  {r:'ã°ãããã ã',c:'é¦¬ä¸å°'},{r:'ã²ããããã',c:'æ±éç°'},{r:'ã²ããããã®ã¾ã¡',c:'æ±ç¯­éçº'},
+  {r:'ã²ãããã¨ã ',c:'æ±å¿æ¸ç°'},{r:'ã²ããã ',c:'æ±ç°'},{r:'ã²ããã«ãã ',c:'æ±äºä½ç°'},
+  {r:'ã²ããã¯ãã¾ã¡',c:'æ±åçº'},{r:'ã²ããã¯ããã',c:'æ±åé·'},{r:'ã²ãããµãã ã¦',c:'æ±å¤é¤¨'},
+  {r:'ã²ãããã¾ãã',c:'æ±å±±å½¢'},{r:'ã²ã®ãã¡ãã',c:'æ¡§çº'},{r:'ã²ããã¼',c:'å¹³ä¹ä¿'},
+  {r:'ã²ããã¿ã',c:'å¹³æ¸æ°´'},{r:'ãµãã¾ã¡',c:'æ·±çº'},{r:'ãµããããã',c:'è¤æ²¢å·'},
+  {r:'ãµãã°ã¡ãã',c:'åèçº'},{r:'ãµãªã¾ã¡',c:'è¹çº'},{r:'ãµãã ã¦',c:'å¤é¤¨'},
+  {r:'ã¸ãã ',c:'å¹³ç°'},{r:'ã»ã¥ã¿',c:'ç©ç©'},{r:'ã»ãã¡ãã',c:'æ¬çº'},
+  {r:'ã¼ãã°ãã¾ã¡',c:'é²åçº'},{r:'ã¾ãããã',c:'åæç³'},{r:'ã¾ããã¾ã¡',c:'åç°çº'},
+  {r:'ã¾ã¤ãã',c:'æ¾æ '},{r:'ã¾ã¤ãªã¿',c:'æ¾æ³¢'},{r:'ã¾ã¤ã°ã',c:'æ¾å'},
+  {r:'ã¾ã¤ã¿ã¡ãã',c:'æ¾è¦çº'},{r:'ã¾ã¤ãã¾',c:'æ¾å±±'},{r:'ã¾ã¿ããã',c:'é¦¬è¦ã±å´'},
+  {r:'ã¿ãã',c:'è¦å´'},{r:'ã¿ããããã',c:'è¦å´å·å'},{r:'ã¿ã£ãã¾ã¡',c:'ä¸æ¥çº'},
+  {r:'ã¿ã©ãã¡ãã',c:'ç·çº'},{r:'ã¿ãªã¿ãã¡ã°ãã¡ãã',c:'åä¸çªçº'},
+  {r:'ã¿ãªã¿ã«ã°ãã¡ãã',c:'åäºçªçº'},{r:'ã¿ãªã¿ããã°ãã¡ãã',c:'åä¸çªçº'},
+  {r:'ã¿ãªã¿ããã°ãã¡ãã',c:'ååçªçº'},{r:'ã¿ãªã¿ãããã',c:'åç³é¢'},
+  {r:'ã¿ãªã¿ãã¨ã ',c:'åå¿æ¸ç°'},{r:'ã¿ãªã¿ã ã¦',c:'åé¤¨'},{r:'ã¿ãªã¿ã ã¦ã«ã',c:'åé¤¨è¥¿'},
+  {r:'ã¿ãªã¿ã¯ãã¾ã¡',c:'ååçº'},{r:'ã¿ãªã¿ã¯ããã',c:'ååé·'},{r:'ã¿ãªã¿ã¾ã¤ã°ã',c:'åæ¾å'},
+  {r:'ã¿ã®ãããã',c:'ã¿ã®ããä¸'},{r:'ã¿ã¯ãã¡ãã',c:'ç¾ççº'},
+  {r:'ã¿ã¯ããã®ãã',c:'ã¿ã¯ããã®ä¸'},{r:'ã¿ããã',c:'å®®æµ¦'},{r:'ã¿ãã¾ã¡',c:'å®®çº'},
+  {r:'ã¿ããããã',c:'å¦è¦å¯º'},{r:'ã¿ããããã¾ã',c:'æç¥å'},{r:'ãããã¾ã¡',c:'å­æ¥çº'},
+  {r:'ãããããã§ã',c:'åæ°ç°'},{r:'ããããã',c:'ææ¨æ²¢'},{r:'ãã¨ã',c:'åæ¨'},
+  {r:'ããã§ã',c:'éä¼'},{r:'ãããã',c:'è°·æ'},{r:'ãããã¾ã¡',c:'è¬å¸«çº'},
+  {r:'ãã¡ã¾ã',c:'è°·å°å'},{r:'ããªãã ',c:'æ³ç°'},{r:'ãã¾ã§ã',c:'å±±å¯º'},
+  {r:'ããã',c:'ããã'},{r:'ããã¹ã»ãã¡ãã',c:'å±±å®¶æ¬çº'},{r:'ããã¹ã¾ã¡',c:'å±±å®¶çº'},
+  {r:'ãããã¾ã¡',c:'å«æ¥çº'},{r:'ããã',c:'æ¨ªäº'},{r:'ããã¿ã¡',c:'æ¨ªé'},
+  {r:'ãããã',c:'è³æ²¢'},{r:'ããã®',c:'è³é'},{r:'ããã®ããã',c:'åéå®¿'},
+  {r:'ããã¯ã',c:'åå'},{r:'ããã¯ãã¿ãªã¿',c:'ååå'},
+  {r:'ãããã¤ããããã¼',c:'æµéã»ã³ã¿ã¼'},{r:'ããã',c:'è¥æ¨'},
+  {r:'ããã°ã¡ãã',c:'è¥èçº'},{r:'ããã¿ã',c:'è¥å®®'},{r:'ãããã¾ã¡',c:'ååçº'}
 ];
 
 // ===== SETTINGS =====
 function loadSettings() {
   return {
     claudeKey: localStorage.getItem('vj_claude_key') || '',
-    notionToken: localStorage.getItem('vj_notion_token') || '',
     notionDbId: localStorage.getItem('vj_notion_db') || '3380f4bd26f68088aab6fcfbb5c260a5'
   };
 }
 
 function saveSettings() {
   const key = document.getElementById('claudeKey').value.trim();
-  const token = document.getElementById('notionToken').value.trim();
   const db = document.getElementById('notionDbId').value.trim();
 
-  if (!key || !token || !db) {
-    showToast('すべての項目を入力してください', 'error');
+  if (!key || !db) {
+    showToast('ãã¹ã¦ã®é ç®ãå¥åãã¦ãã ãã', 'error');
     return;
   }
 
   localStorage.setItem('vj_claude_key', key);
-  localStorage.setItem('vj_notion_token', token);
   localStorage.setItem('vj_notion_db', db);
-  showToast('設定を保存しました', 'success');
+  showToast('è¨­å®ãä¿å­ãã¾ãã', 'success');
   showScreen('mainScreen');
+  switchTab('record');
+}
+
+function saveSettingsFromSettings() {
+  const key = document.getElementById('settingsClaudeKey').value.trim();
+  const db = document.getElementById('settingsNotionDbId').value.trim();
+
+  if (!key || !db) {
+    showToast('ãã¹ã¦ã®é ç®ãå¥åãã¦ãã ãã', 'error');
+    return;
+  }
+
+  localStorage.setItem('vj_claude_key', key);
+  localStorage.setItem('vj_notion_db', db);
+  showToast('è¨­å®ãä¿å­ãã¾ãã', 'success');
+}
+
+function loadSettingsIntoUI() {
+  const s = loadSettings();
+  const dict = loadUserDictionary();
+
+  if (s.claudeKey) document.getElementById('settingsClaudeKey').value = s.claudeKey;
+  if (s.notionDbId) document.getElementById('settingsNotionDbId').value = s.notionDbId;
+
+  renderDictEntries(dict);
+}
+
+// ===== USER DICTIONARY =====
+function loadUserDictionary() {
+  const stored = localStorage.getItem('vj_user_dict');
+  return stored ? JSON.parse(stored) : [];
+}
+
+function saveUserDictionary(dict) {
+  localStorage.setItem('vj_user_dict', JSON.stringify(dict));
+}
+
+function addDictEntry() {
+  const yomi = document.getElementById('dictYomi').value.trim();
+  const henkan = document.getElementById('dictHenkan').value.trim();
+
+  if (!yomi || !henkan) {
+    showToast('èª­ã¿ã¨å¤æå¾ã®ä¸¡æ¹ãå¥åãã¦ãã ãã', 'error');
+    return;
+  }
+
+  const dict = loadUserDictionary();
+  dict.push({r: yomi, c: henkan});
+  saveUserDictionary(dict);
+
+  document.getElementById('dictYomi').value = '';
+  document.getElementById('dictHenkan').value = '';
+
+  renderDictEntries(dict);
+  showToast('è¾æ¸ã«è¿½å ãã¾ãã', 'success');
+}
+
+function deleteDictEntry(idx) {
+  const dict = loadUserDictionary();
+  dict.splice(idx, 1);
+  saveUserDictionary(dict);
+  renderDictEntries(dict);
+}
+
+function renderDictEntries(dict) {
+  const container = document.getElementById('dictEntries');
+  container.innerHTML = '';
+
+  if (dict.length === 0) {
+    container.innerHTML = '<div style="color: var(--text2); font-size: 12px; padding: 8px 0;">ã¾ã ç»é²ããã¦ãã¾ãã</div>';
+    return;
+  }
+
+  dict.forEach((entry, idx) => {
+    const chip = document.createElement('div');
+    chip.className = 'dict-chip';
+    chip.innerHTML = `${entry.r}â${entry.c}<span class="dict-chip-delete" onclick="deleteDictEntry(${idx})">Ã</span>`;
+    container.appendChild(chip);
+  });
 }
 
 // ===== SCREEN MANAGEMENT =====
@@ -656,12 +1134,34 @@ function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
 
-  // Setup screen: prefill saved values
   if (id === 'setupScreen') {
     const s = loadSettings();
     if (s.claudeKey) document.getElementById('claudeKey').value = s.claudeKey;
-    if (s.notionToken) document.getElementById('notionToken').value = s.notionToken;
     if (s.notionDbId) document.getElementById('notionDbId').value = s.notionDbId;
+  }
+
+  if (id === 'settingsScreen') {
+    loadSettingsIntoUI();
+  }
+
+  if (id === 'historyScreen') {
+    loadHistory();
+  }
+}
+
+function switchTab(tab) {
+  const navItems = document.querySelectorAll('.nav-item');
+  navItems.forEach(item => item.classList.remove('active'));
+
+  if (tab === 'record') {
+    document.getElementById('navRecord').classList.add('active');
+    showScreen('mainScreen');
+  } else if (tab === 'history') {
+    document.getElementById('navHistory').classList.add('active');
+    showScreen('historyScreen');
+  } else if (tab === 'settings') {
+    document.getElementById('navSettings').classList.add('active');
+    showScreen('settingsScreen');
   }
 }
 
@@ -669,7 +1169,7 @@ function showScreen(id) {
 function initRecognition() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) {
-    showToast('このブラウザは音声認識に対応していません', 'error');
+    showToast('ãã®ãã©ã¦ã¶ã¯é³å£°èªè­ã«å¯¾å¿ãã¦ãã¾ãã', 'error');
     return null;
   }
   const r = new SR();
@@ -688,7 +1188,7 @@ function initRecognition() {
       }
     }
     updateTranscriptDisplay();
-    document.getElementById('sendBtn').disabled = !finalTranscript.trim();
+    updateActionRow();
   };
 
   r.onend = () => {
@@ -699,7 +1199,7 @@ function initRecognition() {
 
   r.onerror = (e) => {
     if (e.error !== 'no-speech') {
-      showToast('音声認識エラー: ' + e.error, 'error');
+      showToast('é³å£°èªè­ã¨ã©ã¼: ' + e.error, 'error');
       stopRecording();
     }
   };
@@ -723,6 +1223,21 @@ function updateTranscriptDisplay() {
   }
 }
 
+function updateActionRow() {
+  const row = document.getElementById('mainActionRow');
+  const hasTranscript = finalTranscript.trim().length > 0;
+
+  if (isRecording) {
+    row.innerHTML = '<button class="btn-secondary" onclick="clearTranscript()">ã¯ãªã¢</button><button class="btn-send" id="sendBtn" onclick="processAndSave()" ' + (hasTranscript ? '' : 'disabled') + '>AIã§æ´å½¢ãã¦ä¿å­</button>';
+  } else {
+    if (hasTranscript) {
+      row.innerHTML = '<button class="btn-secondary" onclick="clearTranscript()">ã¯ãªã¢</button><button class="btn-append" onclick="resumeRecording()">è¿½å é²é³</button><button class="btn-send" id="sendBtn" onclick="processAndSave()">AIã§æ´å½¢ãã¦ä¿å­</button>';
+    } else {
+      row.innerHTML = '<button class="btn-secondary" onclick="clearTranscript()">ã¯ãªã¢</button><button class="btn-send" id="sendBtn" onclick="processAndSave()" disabled>AIã§æ´å½¢ãã¦ä¿å­</button>';
+    }
+  }
+}
+
 function toggleRecording() {
   if (isRecording) {
     stopRecording();
@@ -739,9 +1254,26 @@ function startRecording() {
     recognition.start();
     isRecording = true;
     document.getElementById('micBtn').classList.add('recording');
-    document.getElementById('statusText').textContent = '録音中... タップで停止';
+    document.getElementById('statusText').textContent = 'é²é³ä¸­... ã¿ããã§åæ­¢';
   } catch (e) {
-    showToast('録音を開始できませんでした', 'error');
+    showToast('é²é³ãéå§ã§ãã¾ããã§ãã', 'error');
+  }
+}
+
+function resumeRecording() {
+  if (!recognition) recognition = initRecognition();
+  if (!recognition) return;
+
+  try {
+    finalTranscript += '\n';
+    interimTranscript = '';
+    updateTranscriptDisplay();
+    recognition.start();
+    isRecording = true;
+    document.getElementById('micBtn').classList.add('recording');
+    document.getElementById('statusText').textContent = 'è¿½å é²é³ä¸­... ã¿ããã§åæ­¢';
+  } catch (e) {
+    showToast('é²é³ãéå§ã§ãã¾ããã§ãã', 'error');
   }
 }
 
@@ -751,9 +1283,10 @@ function stopRecording() {
     recognition.stop();
   }
   document.getElementById('micBtn').classList.remove('recording');
-  document.getElementById('statusText').textContent = 'タップして録音開始';
+  document.getElementById('statusText').textContent = 'ã¿ãããã¦é²é³éå§';
   interimTranscript = '';
   updateTranscriptDisplay();
+  updateActionRow();
 }
 
 function clearTranscript() {
@@ -761,28 +1294,56 @@ function clearTranscript() {
   finalTranscript = '';
   interimTranscript = '';
   updateTranscriptDisplay();
-  document.getElementById('sendBtn').disabled = true;
+  updateActionRow();
+}
+
+// ===== REQUEST MIC PERMISSION =====
+async function requestMicPermission() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({audio: true});
+    stream.getTracks().forEach(track => track.stop());
+    micPermissionGranted = true;
+    updateMicStatus();
+  } catch (e) {
+    console.log('Mic permission not granted:', e.message);
+  }
+}
+
+function updateMicStatus() {
+  const status = document.getElementById('micPermissionStatus');
+  if (micPermissionGranted) {
+    status.textContent = 'ãã¤ã¯ â';
+  } else {
+    status.textContent = '';
+  }
 }
 
 // ===== CLAUDE API =====
+function getMergedDictionary() {
+  const built = DICTIONARY.slice();
+  const user = loadUserDictionary();
+  return built.concat(user);
+}
+
 async function formatWithClaude(text) {
   const s = loadSettings();
-  const dictStr = DICTIONARY.map(e => `「${e.r}」→「${e.c}」`).join(' ');
+  const dict = getMergedDictionary();
+  const dictStr = dict.map(e => `ã${e.r}ãâã${e.c}ã`).join(' ');
 
-  const prompt = `以下の音声入力テキストを、自然な一人称の日記文体（です・ます調ではなく、だ・である調）に整えてください。
+  const prompt = `ä»¥ä¸ã®é³å£°å¥åãã­ã¹ãããèªç¶ãªä¸äººç§°ã®æ¥è¨æä½ï¼ã§ãã»ã¾ãèª¿ã§ã¯ãªããã ã»ã§ããèª¿ï¼ã«æ´ãã¦ãã ããã
 
-【ルール】
-・話者が実際に言った内容のみをもとに整える
-・感情・意図・背景の推測や補足は一切加えない
-・言っていないことを補完しない
-・以下の固有名詞辞書を参照して誤変換を修正する
-・辞書にない固有名詞は原文のままにする
-・整形したテキストのみ出力する（説明・タイトル不要）
+ãã«ã¼ã«ã
+ã»è©±èãå®éã«è¨ã£ãåå®¹ã®ã¿ããã¨ã«æ´ãã
+ã»ææã»æå³ã»èæ¯ã®æ¨æ¸¬ãè£è¶³ã¯ä¸åå ããªã
+ã»è¨ã£ã¦ããªããã¨ãè£å®ããªã
+ã»ä»¥ä¸ã®åºæåè©è¾æ¸ãåç§ãã¦èª¤å¤æãä¿®æ­£ãã
+ã»è¾æ¸ã«ãªãåºæåè©ã¯åæã®ã¾ã¾ã«ãã
+ã»æ´å½¢ãããã­ã¹ãã®ã¿åºåããï¼èª¬æã»ã¿ã¤ãã«ä¸è¦ï¼
 
-【固有名詞辞書】
+ãåºæåè©è¾æ¸ã
 ${dictStr}
 
-【音声入力テキスト】
+ãé³å£°å¥åãã­ã¹ãã
 ${text}`;
 
   let res;
@@ -802,7 +1363,7 @@ ${text}`;
       })
     });
   } catch(e) {
-    throw new Error('通信エラー: ' + e.message + ' / キー先頭: ' + s.claudeKey.slice(0,12));
+    throw new Error('éä¿¡ã¨ã©ã¼: ' + e.message);
   }
 
   if (!res.ok) {
@@ -821,12 +1382,11 @@ async function processAndSave() {
 
   stopRecording();
   showScreen('processingScreen');
-  document.getElementById('processingLabel').textContent = 'AIが日記に整形中...';
+  document.getElementById('processingLabel').textContent = 'AIãæ¥è¨ã«æ´å½¢ä¸­...';
 
   try {
     formattedText = await formatWithClaude(text);
 
-    // Set result time
     const now = new Date();
     document.getElementById('resultTime').textContent =
       now.toLocaleDateString('ja-JP') + ' ' +
@@ -834,14 +1394,13 @@ async function processAndSave() {
 
     document.getElementById('resultText').value = formattedText;
 
-    // Reset mood/tags
     selectedMood = '';
     selectedTags = [];
     document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
 
     showScreen('resultScreen');
   } catch (e) {
-    showToast('エラー: ' + e.message, 'error');
+    showToast('ã¨ã©ã¼: ' + e.message, 'error');
     showScreen('mainScreen');
   }
 }
@@ -866,29 +1425,89 @@ function toggleTag(tag) {
   });
 }
 
+// ===== HISTORY =====
+async function loadHistory() {
+  const list = document.getElementById('historyList');
+  list.innerHTML = '<div class="history-loading"><div class="spinner"></div><span>èª­ã¿è¾¼ã¿ä¸­...</span></div>';
+
+  try {
+    const s = loadSettings();
+    const res = await fetch('https://notion-proxy.crimson-breeze-6bca.workers.dev/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        database_id: s.notionDbId,
+        sorts: [{ property: 'æ¥ä»', direction: 'descending' }],
+        page_size: 20
+      })
+    });
+
+    if (!res.ok) {
+      throw new Error('Failed to fetch entries');
+    }
+
+    const data = await res.json();
+    const entries = data.results || [];
+
+    if (entries.length === 0) {
+      list.innerHTML = '<div class="history-empty">ã¾ã æ¥è¨ãããã¾ãã</div>';
+      return;
+    }
+
+    list.innerHTML = '';
+    entries.forEach((entry, idx) => {
+      const props = entry.properties || {};
+      const dateObj = props['æ¥ä»']?.date;
+      const timeStr = props['æå»']?.rich_text?.[0]?.text?.content || '';
+      const textStr = props['æ¬æ']?.rich_text?.[0]?.text?.content || '';
+      const moodStr = props['æ°å']?.select?.name || '';
+
+      const dateStr = dateObj ? new Date(dateObj.start).toLocaleDateString('ja-JP') : '';
+      const moodEmoji = moodStr === 'è¯ã' ? 'ð' : moodStr === 'æ®é' ? 'ð' : moodStr === 'æªã' ? 'ð' : 'ð';
+
+      const item = document.createElement('div');
+      item.className = 'history-item';
+      item.onclick = () => { item.classList.toggle('expanded'); };
+
+      const escapedText = textStr.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+
+      item.innerHTML = `
+        <div class="history-item-header">
+          <span class="history-item-date">${dateStr} ${timeStr}</span>
+          <span class="history-item-mood">${moodEmoji}</span>
+        </div>
+        <div class="history-item-preview">${escapedText}</div>
+      `;
+
+      list.appendChild(item);
+    });
+  } catch (e) {
+    list.innerHTML = '<div class="history-empty">èª­ã¿è¾¼ã¿ã¨ã©ã¼: ' + e.message + '</div>';
+  }
+}
+
 // ===== NOTION =====
 async function saveToNotion() {
   const s = loadSettings();
-  // textareaの現在の内容を使う（編集済みの場合はそちらを優先）
   const currentText = document.getElementById('resultText').value.trim() || formattedText;
   const now = new Date();
   const dateStr = now.toISOString();
   const timeStr = now.toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit'});
-  const titleStr = now.toLocaleDateString('ja-JP') + ' ' + timeStr + '　' +
-    currentText.slice(0, 30).replace(/\n/g, ' ') + '…';
+  const titleStr = now.toLocaleDateString('ja-JP') + ' ' + timeStr + 'ã' +
+    currentText.slice(0, 30).replace(/\n/g, ' ') + 'â¦';
 
   showScreen('processingScreen');
-  document.getElementById('processingLabel').textContent = 'Notionに保存中...';
+  document.getElementById('processingLabel').textContent = 'Notionã«ä¿å­ä¸­...';
 
   const props = {
-    '名前': { title: [{ text: { content: titleStr } }] },
-    '日付': { date: { start: dateStr } },
-    '時刻': { date: { start: new Date().toISOString().slice(0, 19) } },
-    '本文': { rich_text: [{ text: { content: currentText.slice(0, 2000) } }] }
+    'åå': { title: [{ text: { content: titleStr } }] },
+    'æ¥ä»': { date: { start: dateStr } },
+    'æå»': { rich_text: [{ text: { content: timeStr } }] },
+    'æ¬æ': { rich_text: [{ text: { content: currentText.slice(0, 2000) } }] }
   };
 
-  if (selectedMood) props['気分'] = { select: { name: selectedMood } };
-  if (selectedTags.length) props['タグ'] = { multi_select: selectedTags.map(t => ({ name: t })) };
+  if (selectedMood) props['æ°å'] = { select: { name: selectedMood } };
+  if (selectedTags.length) props['ã¿ã°'] = { multi_select: selectedTags.map(t => ({ name: t })) };
 
   const body = {
     parent: { database_id: s.notionDbId },
@@ -905,24 +1524,23 @@ async function saveToNotion() {
   try {
     const res = await fetch('https://notion-proxy.crimson-breeze-6bca.workers.dev', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
 
     if (res.ok) {
-      showToast('Notionに保存しました ?', 'success');
+      showToast('Notionã«ä¿å­ãã¾ãã â', 'success');
       clearTranscript();
+      finalTranscript = '';
       showScreen('mainScreen');
+      switchTab('record');
     } else {
       const err = await res.json();
-      throw new Error(err.message || 'Notion APIエラー');
+      throw new Error(err.message || 'Worker APIã¨ã©ã¼');
     }
   } catch (e) {
-    // CORSエラーの可能性 → テキストをコピーして案内
     showScreen('resultScreen');
-    showToast('保存失敗: ' + e.message, 'error');
+    showToast('ä¿å­å¤±æ: ' + e.message, 'error');
   }
 }
 
@@ -935,16 +1553,18 @@ function showToast(msg, type = '') {
 }
 
 // ===== INIT =====
-window.addEventListener('load', () => {
+window.addEventListener('load', async () => {
   const s = loadSettings();
-  if (s.claudeKey) {
+
+  await requestMicPermission();
+
+  if (s.claudeKey && s.notionDbId) {
     showScreen('mainScreen');
+    switchTab('record');
   } else {
     showScreen('setupScreen');
   }
 });
-</script>
-
-    <div style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#666;opacity:0.5;">v2.3</div>
+ </script>
 </body>
 </html>
