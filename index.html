@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="theme-color" content="#0d0d0d">
+<title>音声日記</title>
+<link rel="manifest" href="manifest.json">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --gold: #c9a84c;
+  --bg: #0d0d0d;
+  --surface: #1a1a1a;
+  --surface2: #252525;
+  --border: #333;
+  --text: #f0e6c8;
+  --muted: #888;
+  --red: #e05555;
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, 'Helvetica Neue', sans-serif;
+  overflow: hidden;
+}
+
+.app {
+  display: flex; flex-direction: column;
+  height: 100vh; height: -webkit-fill-available;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* ---- HEADER ---- */
+.header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 20px; flex-shrink: 0;
+}
+.header h1 { font-size: 20px; font-weight: 600; color: var(--gold); }
+.settings-btn {
+  background: none; border: none; color: var(--muted);
+  font-size: 22px; cursor: pointer; padding: 4px 8px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ---- CONTENT ---- */
+.content { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+
+/* ---- SCREENS ---- */
+.screen {
+  display: none; padding: 8px 20px 24px;
+  min-height: 100%; flex-direction: column;
+  align-items: center; gap: 18px;
+}
+.screen.active { display: flex; }
+
+/* ---- TAB BAR ---- */
+.tab-bar {
+  display: flex; border-top: 1px solid var(--border);
+  background: var(--bg); flex-shrink: 0;
+}
+.tab-btn {
+  flex: 1; padding: 10px 0; background: none; border: none;
+  color: var(--muted); font-size: 11px; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  -webkit-tap-highlight-color: transparent; transition: color 0.2s;
+}
+.tab-icon { font-size: 22px; line-height: 1; }
+.tab-btn.active { color: var(--gold); }
+.hide-tabs .tab-bar { display: none; }
+
+/* ---- MIC ---- */
+.status-text { font-size: 14px; color: var(--muted); margin-top: 4px; }
+.mic-btn {
+  width: 110px; height: 110px; border-radius: 50%;
+  border: 2px solid var(--gold); background: var(--surface);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  -webkit-tap-highlight-color: transparent; transition: border-color 0.2s;
+}
+.mic-btn.recording { border-color: var(--red); animation: pulse 1.5s ease-in-out infinite; }
+.mic-icon { width: 44px; height: 44px; fill: var(--gold); transition: fill 0.2s; }
+.mic-btn.recording .mic-icon { fill: var(--red); }
+@keyframes pulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(224,85,85,0.25); }
+  50%      { box-shadow: 0 0 0 14px rgba(224,85,85,0); }
+}
+
+/* ---- TEXTAREA ---- */
+textarea {
+  width: 100%; min-height: 120px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 14px; color: var(--text); font-size: 16px;
+  line-height: 1.65; padding: 14px 16px; resize: vertical;
+  font-family: -apple-system, sans-serif; -webkit-appearance: none;
+}
+textarea::placeholder { color: #4a4a4a; }
+
+/* ---- BUTTONS ---- */
+.btn-row { display: flex; gap: 10px; width: 100%; }
+.btn-s {
+  flex: 1; padding: 15px; border-radius: 12px;
+  border: 1px solid #444; background: var(--surface2);
+  color: var(--muted); font-size: 16px; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn-p {
+  flex: 2; padding: 15px; border-radius: 12px; border: none;
+  background: var(--gold); color: #0d0d0d;
+  font-size: 16px; font-weight: 600; cursor: pointer;
+  -webkit-tap-highlight-color: transparent; transition: opacity 0.2s;
+}
+.btn-p.full { flex: 1; }
+
+/* ---- RESULT ---- */
+.result-header { display: flex; justify-content: space-between; align-items: baseline; width: 100%; }
+.result-title  { font-size: 17px; color: var(--gold); font-weight: 600; }
+.result-date   { font-size: 12px; color: #555; }
+
+.tags-row { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; }
+.tag-chip {
+  padding: 4px 12px; border-radius: 20px;
+  background: #1f1f1f; border: 1px solid #3a3a3a;
+  font-size: 13px; color: var(--gold);
+}
+
+.section-label { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+.todo-section  { width: 100%; }
+
+.todo-chips { display: flex; flex-direction: column; gap: 6px; }
+.todo-chip {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px 14px; font-size: 15px;
+}
+.todo-chip-del {
+  background: none; border: none; color: #555;
+  font-size: 18px; cursor: pointer; padding: 0 0 0 10px; line-height: 1;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ---- TODO TAB ---- */
+.todo-header { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+.todo-header-title { font-size: 16px; color: var(--gold); font-weight: 600; }
+.refresh-btn {
+  background: none; border: 1px solid var(--border); border-radius: 20px;
+  padding: 7px 16px; color: var(--muted); font-size: 13px; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.todo-list-item {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 14px 16px;
+  cursor: pointer; -webkit-tap-highlight-color: transparent; transition: opacity 0.3s;
+}
+.todo-list-item.completing { opacity: 0.3; }
+.todo-check { width: 22px; height: 22px; flex-shrink: 0; border-radius: 50%; border: 2px solid var(--gold); }
+.todo-task  { font-size: 16px; flex: 1; }
+.todo-date  { font-size: 12px; color: var(--muted); flex-shrink: 0; }
+.empty-state { text-align: center; color: var(--muted); font-size: 15px; padding: 48px 0; line-height: 2; width: 100%; }
+
+/* ---- LOADING ---- */
+.loading {
+  display: none; position: fixed; inset: 0;
+  background: rgba(13,13,13,0.88);
+  align-items: center; justify-content: center; flex-direction: column; gap: 14px; z-index: 100;
+}
+.loading.active { display: flex; }
+.spinner { width: 38px; height: 38px; border: 3px solid #2a2a2a; border-top-color: var(--gold); border-radius: 50%; animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { color: var(--muted); font-size: 14px; }
+
+/* ---- TOAST ---- */
+.toast {
+  position: fixed; bottom: calc(72px + env(safe-area-inset-bottom));
+  left: 50%; transform: translateX(-50%) translateY(10px);
+  background: var(--surface2); border: 1px solid #444;
+  color: var(--text); padding: 11px 22px; border-radius: 22px; font-size: 14px;
+  opacity: 0; transition: opacity 0.25s, transform 0.25s;
+  z-index: 200; white-space: nowrap; pointer-events: none;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.hide-tabs .toast { bottom: calc(30px + env(safe-area-inset-bottom)); }
+
+/* ---- SETTINGS ---- */
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.65); z-index: 300; align-items: flex-end;
+}
+.modal-overlay.active { display: flex; }
+.modal {
+  background: var(--surface); border-radius: 20px 20px 0 0;
+  padding: 24px 20px; padding-bottom: calc(24px + env(safe-area-inset-bottom));
+  width: 100%; max-height: 85vh; overflow-y: auto; -webkit-overflow-scrolling: touch;
+}
+.modal-title { font-size: 17px; color: var(--gold); margin-bottom: 20px; }
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; }
+.field input, .field textarea {
+  width: 100%; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text); font-size: 14px;
+  padding: 11px 12px; -webkit-appearance: none;
+}
+.field input    { font-family: monospace; }
+.field textarea { font-family: monospace; min-height: 90px; resize: vertical; line-height: 1.6; }
+.field-hint     { font-size: 11px; color: #555; margin-top: 5px; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+
+  <div class="header">
+    <h1>音声日記</h1>
+    <button class="settings-btn" onclick="openSettings()">⚙️</button>
+  </div>
+
+  <div class="content">
+
+    <!-- ========== 録音画面 ========== -->
+    <div id="recordScreen" class="screen active">
+      <p class="status-text" id="statusText">タップして録音開始</p>
+
+      <button class="mic-btn" id="micBtn" onclick="toggleRecording()">
+        <svg class="mic-icon" viewBox="0 0 24 24">
+          <path d="M12 1a4 4 0 014 4v6a4 4 0 01-8 0V5a4 4 0 014-4zm0 2a2 2 0 00-2 2v6a2 2
+            0 004 0V5a2 2 0 00-2-2zm-1 14.93V20H9v2h6v-2h-2v-2.07A7 7 0 0019 11h-2a5 5
+            0 01-10 0H5a7 7 0 006 6.93z"/>
+        </svg>
+      </button>
+
+      <textarea id="transcript" placeholder="話した内容がここに表示されます" readonly></textarea>
+
+      <div class="btn-row">
+        <button class="btn-s" onclick="clearAll()">クリア</button>
+      </div>
+    </div>
+
+    <!-- ========== 整形結果画面 ========== -->
+    <div id="resultScreen" class="screen">
+      <div class="result-header">
+        <span class="result-title">整形結果</span>
+        <span class="result-date" id="resultDate"></span>
+      </div>
+
+      <textarea id="formattedText" style="min-height:160px;"></textarea>
+
+      <div class="tags-row" id="tagsRow"></div>
+
+      <div class="todo-section" id="todoResultSection" style="display:none">
+        <p class="section-label">📋 ToDo（✕で削除できます）</p>
+        <div class="todo-chips" id="todoChips"></div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-s" onclick="backToRecord()">戻る</button>
+        <button class="btn-p" onclick="saveToNotion()">Notionに保存</button>
+      </div>
+    </div>
+
+    <!-- ========== ToDo一覧画面 ========== -->
+    <div id="todoScreen" class="screen">
+      <div class="todo-header">
+        <span class="todo-header-title">未完了のToDo</span>
+        <button class="refresh-btn" onclick="loadTodos()">↺ 更新</button>
+      </div>
+      <div id="todoListContainer" style="width:100%">
+        <p class="empty-state">読み込み中...</p>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="tab-bar" id="tabBar">
+    <button class="tab-btn active" id="tabRecord" onclick="switchTab('record')">
+      <span class="tab-icon">🎙️</span>録音
+    </button>
+    <button class="tab-btn" id="tabTodo" onclick="switchTab('todo')">
+      <span class="tab-icon">✅</span>ToDo
+    </button>
+  </div>
+
+</div>
+
+<!-- LOADING -->
+<div class="loading" id="loading">
+  <div class="spinner"></div>
+  <p class="loading-text" id="loadingText">処理中...</p>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- SETTINGS -->
+<div class="modal-overlay" id="settingsModal" onclick="bgClose(event)">
+  <div class="modal">
+    <p class="modal-title">⚙️ 設定</p>
+
+    <div class="field">
+      <label>Anthropic APIキー</label>
+      <input type="password" id="sAnthropicKey" placeholder="sk-ant-...">
+    </div>
+    <div class="field">
+      <label>Notion APIキー</label>
+      <input type="password" id="sNotionKey" placeholder="ntn_...">
+    </div>
+    <div class="field">
+      <label>ジャーナルDB ID（空白でデフォルト使用）</label>
+      <input type="text" id="sJournalDbId" placeholder="3380f4bd26f68088aab6fcfbb5c260a5">
+    </div>
+    <div class="field">
+      <label>ToDoリストDB ID（空白でデフォルト使用）</label>
+      <input type="text" id="sTodoDbId" placeholder="b73b1c4d47264de6ae100ff1d3a68bdc">
+    </div>
+    <div class="field">
+      <label>置換ルール（音声誤変換の自動修正）</label>
+      <textarea id="sReplaceRules" placeholder="誤変換→正しい表現&#10;例：AIには→AIには&#10;例：はを→歯を"></textarea>
+      <p class="field-hint">1行に1つ。「→」で区切って入力。AI処理前に自動で変換されます。</p>
+    </div>
+
+    <div class="btn-row" style="margin-top:4px">
+      <button class="btn-s" onclick="closeSettings()">キャンセル</button>
+      <button class="btn-p full" onclick="saveSettings()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// =====================================================
+// CONSTANTS
+// =====================================================
+const JOURNAL_DB = '3380f4bd26f68088aab6fcfbb5c260a5';
+const TODO_DB    = 'b73b1c4d47264de6ae100ff1d3a68bdc';
+
+// =====================================================
+// STATE
+// =====================================================
+let isRecording  = false;
+let recognition  = null;
+let finalText    = '';
+let aiResult     = null;
+let savedDate    = null;
+let pendingTodos = [];
+
+// =====================================================
+// SETTINGS
+// =====================================================
+const ls    = k     => localStorage.getItem(k) || '';
+const lsSet = (k,v) => localStorage.setItem(k, v);
+
+function openSettings() {
+  document.getElementById('sAnthropicKey').value = ls('anthropicKey');
+  document.getElementById('sNotionKey').value    = ls('notionKey');
+  document.getElementById('sJournalDbId').value  = ls('journalDbId');
+  document.getElementById('sTodoDbId').value     = ls('todoDbId');
+  document.getElementById('sReplaceRules').value = ls('replaceRules');
+  document.getElementById('settingsModal').classList.add('active');
+}
+function closeSettings() {
+  document.getElementById('settingsModal').classList.remove('active');
+}
+function saveSettings() {
+  lsSet('anthropicKey', document.getElementById('sAnthropicKey').value.trim());
+  lsSet('notionKey',    document.getElementById('sNotionKey').value.trim());
+  lsSet('journalDbId',  document.getElementById('sJournalDbId').value.trim());
+  lsSet('todoDbId',     document.getElementById('sTodoDbId').value.trim());
+  lsSet('replaceRules', document.getElementById('sReplaceRules').value);
+  closeSettings();
+  toast('設定を保存しました ✅');
+}
+function bgClose(e) {
+  if (e.target === e.currentTarget) closeSettings();
+}
+
+// =====================================================
+// 置換ルール
+// =====================================================
+function applyReplaceRules(text) {
+  ls('replaceRules').split('\n').forEach(line => {
+    const idx = line.indexOf('→');
+    if (idx > 0) {
+      const from = line.slice(0, idx).trim();
+      const to   = line.slice(idx + 1).trim();
+      if (from) text = text.split(from).join(to);
+    }
+  });
+  return text;
+}
+
+// =====================================================
+// TAB / SCREEN
+// =====================================================
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(tab === 'record' ? 'tabRecord' : 'tabTodo').classList.add('active');
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(tab === 'record' ? 'recordScreen' : 'todoScreen').classList.add('active');
+  document.getElementById('app').classList.remove('hide-tabs');
+  if (tab === 'todo') loadTodos();
+}
+
+function showResult() {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('resultScreen').classList.add('active');
+  document.getElementById('app').classList.add('hide-tabs');
+}
+
+function backToRecord() {
+  document.getElementById('app').classList.remove('hide-tabs');
+  switchTab('record');
+}
+
+// =====================================================
+// RECORDING
+// =====================================================
+function toggleRecording() {
+  isRecording ? stopRecording() : startRecording();
+}
+
+function startRecording() {
+  const SR = window.webkitSpeechRecognition || window.SpeechRecognition;
+  if (!SR) { toast('このブラウザは音声認識に対応していません'); return; }
+
+  isRecording = true;
+  finalText   = document.getElementById('transcript').value;
+
+  document.getElementById('micBtn').classList.add('recording');
+  document.getElementById('statusText').textContent = '録音中... タップで停止';
+
+  recognition = new SR();
+  recognition.lang           = 'ja-JP';
+  recognition.continuous     = true;
+  recognition.interimResults = true;
+
+  recognition.onresult = e => {
+    let interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const t = e.results[i][0].transcript;
+      e.results[i].isFinal ? (finalText += t) : (interim += t);
+    }
+    const ta = document.getElementById('transcript');
+    ta.value = finalText + interim;
+    ta.scrollTop = ta.scrollHeight;
+  };
+
+  recognition.onerror = e => {
+    if (e.error === 'not-allowed') {
+      toast('マイクの許可が必要です');
+      isRecording = false;
+      document.getElementById('micBtn').classList.remove('recording');
+      document.getElementById('statusText').textContent = 'タップして録音開始';
+    }
+  };
+
+  // ★ iOS Safari は自動停止するため再起動
+  recognition.onend = () => {
+    if (isRecording) { try { recognition.start(); } catch (_) {} }
+  };
+
+  recognition.start();
+}
+
+function stopRecording() {
+  isRecording = false;
+  if (recognition) { recognition.stop(); recognition = null; }
+  document.getElementById('micBtn').classList.remove('recording');
+  document.getElementById('statusText').textContent = 'タップして録音開始';
+
+  const text = document.getElementById('transcript').value.trim();
+  if (text) {
+    formatWithAI(text); // ★停止と同時にAI処理開始
+  }
+}
+
+function clearAll() {
+  if (isRecording) {
+    isRecording = false;
+    if (recognition) { recognition.stop(); recognition = null; }
+    document.getElementById('micBtn').classList.remove('recording');
+    document.getElementById('statusText').textContent = 'タップして録音開始';
+  }
+  finalText = '';
+  document.getElementById('transcript').value = '';
+}
+
+// =====================================================
+// AI FORMATTING
+// =====================================================
+async function formatWithAI(rawText) {
+  const apiKey = ls('anthropicKey');
+  if (!apiKey) { toast('APIキーを設定してください'); openSettings(); return; }
+
+  const corrected = applyReplaceRules(rawText); // ★置換ルール適用
+
+  showLoading('AI処理中...');
+
+  const prompt = `以下の音声テキストを整形し、JSONのみを返してください。説明文やコードブロックは不要です。
+
+音声テキスト：
+${corrected}
+
+返すJSON形式：
+{
+  "formatted": "整形後テキスト（句読点・改行を適切に追加、明らかな誤字修正）",
+  "tags": ["仕事", "気づき", "ToDo", "その他" から該当するもの（複数可）],
+  "todos": ["ToDo項目1", "ToDo項目2"],
+  "mood": "良い" または "普通" または "悪い"
+}
+
+todosの抽出ルール：
+- 「〜する」「〜しなければ」「〜を送る」「〜に電話する」など、具体的な行動が必要なものを全て抽出する
+- ジャーナルの話の流れに埋まっていても見つけ出す
+- 1つのToDoは短く具体的に（例：「山田さんに電話する」）
+- ToDoがない場合は空配列にする`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 1024,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    if (!res.ok) throw new Error(`API ${res.status}`);
+    const data = await res.json();
+    const m    = data.content[0].text.match(/\{[\s\S]*\}/);
+    if (!m) throw new Error('JSONが見つかりません');
+
+    aiResult     = JSON.parse(m[0]);
+    savedDate    = new Date();
+    pendingTodos = [...(aiResult.todos || [])];
+
+    hideLoading();
+    renderResult();
+
+  } catch (err) {
+    hideLoading();
+    toast('エラー: ' + err.message);
+  }
+}
+
+// =====================================================
+// RESULT SCREEN
+// =====================================================
+function renderResult() {
+  const d   = savedDate;
+  const pad = n => String(n).padStart(2, '0');
+  document.getElementById('resultDate').textContent =
+    `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${pad(d.getMinutes())}`;
+
+  document.getElementById('formattedText').value = aiResult.formatted || '';
+
+  const row = document.getElementById('tagsRow');
+  row.innerHTML = '';
+  (aiResult.tags || []).forEach(tag => {
+    const el = document.createElement('span');
+    el.className = 'tag-chip';
+    el.textContent = tag;
+    row.appendChild(el);
+  });
+
+  renderTodoChips();
+  showResult();
+}
+
+function renderTodoChips() {
+  const c = document.getElementById('todoChips');
+  c.innerHTML = '';
+  pendingTodos.forEach((t, i) => {
+    const div = document.createElement('div');
+    div.className = 'todo-chip';
+    div.innerHTML = `
+      <span>${t}</span>
+      <button class="todo-chip-del" onclick="removePendingTodo(${i})">✕</button>
+    `;
+    c.appendChild(div);
+  });
+  document.getElementById('todoResultSection').style.display =
+    pendingTodos.length ? 'block' : 'none';
+}
+
+function removePendingTodo(i) {
+  pendingTodos.splice(i, 1);
+  renderTodoChips();
+}
+
+// =====================================================
+// NOTION SAVE
+// =====================================================
+async function saveToNotion() {
+  const notionKey = ls('notionKey');
+  const journalDb = ls('journalDbId') || JOURNAL_DB;
+  const todoDb    = ls('todoDbId')    || TODO_DB;
+
+  if (!notionKey) { toast('Notion APIキーを設定してください'); openSettings(); return; }
+
+  showLoading('Notionに保存中...');
+
+  const body    = document.getElementById('formattedText').value.trim();
+  const d       = savedDate;
+  const pad     = n => String(n).padStart(2, '0');
+  const dateISO = d.toISOString();
+  const title   = `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${pad(d.getMinutes())} ${body.slice(0, 25)}`;
+
+  const headers = {
+    'Authorization': `Bearer ${notionKey}`,
+    'Content-Type': 'application/json',
+    'Notion-Version': '2022-06-28'
+  };
+
+  async function notionPost(dbId, props) {
+    const r = await fetch('https://api.notion.com/v1/pages', {
+      method: 'POST', headers,
+      body: JSON.stringify({ parent: { database_id: dbId }, properties: props })
+    });
+    if (!r.ok) { const e = await r.json(); throw new Error(e.message || r.status); }
+  }
+
+  try {
+    await notionPost(journalDb, {
+      名前: { title:        [{ text: { content: title } }] },
+      日付: { date:         { start: dateISO } },
+      本文: { rich_text:    [{ text: { content: body } }] },
+      タグ: { multi_select: (aiResult.tags || []).map(n => ({ name: n })) },
+      気分: { select:       { name: aiResult.mood || '普通' } }
+    });
+
+    for (const t of pendingTodos) {
+      await notionPost(todoDb, {
+        タスク: { title:  [{ text: { content: t } }] },
+        日付:   { date:   { start: dateISO } },
+        完了:   { checkbox: false }
+      });
+    }
+
+    hideLoading();
+    const msg = pendingTodos.length ? `（ToDo ${pendingTodos.length}件も保存）` : '';
+    toast(`✅ 保存しました ${msg}`);
+    setTimeout(() => { clearAll(); backToRecord(); }, 1500);
+
+  } catch (err) {
+    hideLoading();
+    toast('保存エラー: ' + err.message);
+  }
+}
+
+// =====================================================
+// TODO TAB
+// =====================================================
+async function loadTodos() {
+  const notionKey = ls('notionKey');
+  const todoDb    = ls('todoDbId') || TODO_DB;
+  const c         = document.getElementById('todoListContainer');
+
+  if (!notionKey) {
+    c.innerHTML = '<p class="empty-state">⚙️ Notion APIキーを設定してください</p>';
+    return;
+  }
+
+  c.innerHTML = '<p class="empty-state">読み込み中...</p>';
+
+  try {
+    const res = await fetch(`https://api.notion.com/v1/databases/${todoDb}/query`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${notionKey}`,
+        'Content-Type': 'application/json',
+        'Notion-Version': '2022-06-28'
+      },
+      body: JSON.stringify({
+        filter: { property: '完了', checkbox: { equals: false } },
+        sorts:  [{ property: '日付', direction: 'ascending' }]
+      })
+    });
+
+    if (!res.ok) throw new Error(`${res.status}`);
+    const data  = await res.json();
+    const items = data.results || [];
+
+    if (!items.length) {
+      c.innerHTML = '<p class="empty-state">✨ 未完了のToDoはありません</p>';
+      return;
+    }
+
+    c.innerHTML = '';
+    items.forEach(page => {
+      const task    = page.properties['タスク']?.title?.[0]?.plain_text || '（無題）';
+      const dateStr = (page.properties['日付']?.date?.start || '').slice(0, 10);
+
+      const div = document.createElement('div');
+      div.className = 'todo-list-item';
+      div.innerHTML = `
+        <div class="todo-check"></div>
+        <span class="todo-task">${task}</span>
+        ${dateStr ? `<span class="todo-date">${dateStr}</span>` : ''}
+      `;
+      div.addEventListener('click', () => completeTodo(page.id, div));
+      c.appendChild(div);
+    });
+
+  } catch (err) {
+    c.innerHTML = `<p class="empty-state">読み込みエラー<br>${err.message}</p>`;
+  }
+}
+
+async function completeTodo(pageId, el) {
+  el.classList.add('completing');
+  try {
+    const r = await fetch(`https://api.notion.com/v1/pages/${pageId}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${ls('notionKey')}`,
+        'Content-Type': 'application/json',
+        'Notion-Version': '2022-06-28'
+      },
+      body: JSON.stringify({ properties: { 完了: { checkbox: true } } })
+    });
+    if (!r.ok) throw new Error();
+
+    el.style.height     = el.offsetHeight + 'px';
+    el.style.overflow   = 'hidden';
+    el.style.transition = 'all 0.3s ease';
+    requestAnimationFrame(() => {
+      el.style.height  = '0';
+      el.style.padding = '0';
+      el.style.margin  = '0';
+      el.style.opacity = '0';
+    });
+    setTimeout(() => el.remove(), 320);
+    toast('✅ 完了しました');
+
+  } catch {
+    el.classList.remove('completing');
+    toast('更新に失敗しました');
+  }
+}
+
+// =====================================================
+// HELPERS
+// =====================================================
+function showLoading(msg) {
+  document.getElementById('loadingText').textContent = msg;
+  document.getElementById('loading').classList.add('active');
+}
+function hideLoading() {
+  document.getElementById('loading').classList.remove('active');
+}
+
+let _tt;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(_tt);
+  _tt = setTimeout(() => el.classList.remove('show'), 2600);
+}
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>
