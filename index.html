@@ -208,6 +208,41 @@ textarea::placeholder { color: #4a4a4a; }
 .field input    { font-family: monospace; }
 .field textarea { font-family: monospace; min-height: 90px; resize: vertical; line-height: 1.6; }
 .field-hint     { font-size: 11px; color: #555; margin-top: 5px; line-height: 1.5; }
+
+/* ---- TODO TAB 改修 ---- */
+.todo-list-item.child {
+  margin-left: 28px;
+  border-left: 2px solid var(--border);
+}
+.todo-task-text { flex: 1; cursor: text; word-break: break-all; }
+.todo-task-input {
+  flex: 1; background: var(--surface2); border: 1px solid var(--gold);
+  border-radius: 6px; color: var(--text); font-size: 16px;
+  padding: 2px 8px; outline: none; font-family: inherit; min-width: 0;
+}
+.todo-actions { display: flex; gap: 4px; flex-shrink: 0; }
+.todo-action-btn {
+  background: none; border: 1px solid var(--border); border-radius: 6px;
+  color: var(--muted); font-size: 15px; width: 30px; height: 30px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  -webkit-tap-highlight-color: transparent; flex-shrink: 0;
+}
+.add-todo-row { width: 100%; }
+.add-todo-btn {
+  width: 100%; padding: 12px 16px; border-radius: 12px;
+  border: 1px dashed var(--border); background: transparent;
+  color: var(--muted); font-size: 15px; cursor: pointer;
+  -webkit-tap-highlight-color: transparent; text-align: left;
+}
+/* ---- 整形結果 ToDo textarea ---- */
+.todo-textarea {
+  width: 100%; min-height: 100px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 14px; color: var(--text); font-size: 16px;
+  line-height: 1.65; padding: 14px 16px; resize: vertical;
+  font-family: -apple-system, sans-serif; -webkit-appearance: none;
+}
+.todo-hint { font-size: 11px; color: #555; margin-top: 4px; }
 </style>
 </head>
 <body>
@@ -252,8 +287,9 @@ textarea::placeholder { color: #4a4a4a; }
       <div class="tags-row" id="tagsRow"></div>
 
       <div class="todo-section" id="todoResultSection" style="display:none">
-        <p class="section-label">📋 ToDo（✕で削除できます）</p>
-        <div class="todo-chips" id="todoChips"></div>
+        <p class="section-label">📋 ToDo（Tab/Shift+Tabで階層変更）</p>
+        <textarea class="todo-textarea" id="todoChips" placeholder="タスクを入力...（1行1タスク）"></textarea>
+        <p class="todo-hint">行頭スペース2個 = 子タスク　|　Tab: 下の階層　Shift+Tab: 上の階層</p>
       </div>
 
       <div class="btn-row">
@@ -266,7 +302,10 @@ textarea::placeholder { color: #4a4a4a; }
     <div id="todoScreen" class="screen">
       <div class="todo-header">
         <span class="todo-header-title">未完了のToDo</span>
-        <button class="refresh-btn" onclick="loadTodos()">↺ 更新</button>
+        <div style="display:flex;gap:8px;">
+          <button class="refresh-btn" onclick="addNewTodo()">＋ 追加</button>
+          <button class="refresh-btn" onclick="loadTodos()">↺ 更新</button>
+        </div>
       </div>
       <div id="todoListContainer" style="width:100%">
         <p class="empty-state">読み込み中...</p>
@@ -335,6 +374,7 @@ textarea::placeholder { color: #4a4a4a; }
 // =====================================================
 const JOURNAL_DB = '3380f4bd26f68088aab6fcfbb5c260a5';
 const TODO_DB    = 'b73b1c4d47264de6ae100ff1d3a68bdc';
+const GAS_URL    = 'https://script.google.com/macros/s/AKfycbzLXjm1g8cmqVk3txuR_7s3yqV0Ivy1gliAtCHrKMuGlUdnvRLnQORYLaYP0Y-R10M4gQ/exec';
 
 // =====================================================
 // STATE
@@ -576,19 +616,39 @@ function renderResult() {
 }
 
 function renderTodoChips() {
-  const c = document.getElementById('todoChips');
-  c.innerHTML = '';
-  pendingTodos.forEach((t, i) => {
-    const div = document.createElement('div');
-    div.className = 'todo-chip';
-    div.innerHTML = `
-      <span>${t}</span>
-      <button class="todo-chip-del" onclick="removePendingTodo(${i})">✕</button>
-    `;
-    c.appendChild(div);
-  });
+  const ta = document.getElementById('todoChips');
+  ta.value = pendingTodos.map(t =>
+    typeof t === 'string' ? t : (t.level === 1 ? '  ' : '') + t.text
+  ).join('\n');
+
   document.getElementById('todoResultSection').style.display =
     pendingTodos.length ? 'block' : 'none';
+
+  // Tab/Shift+Tab で階層変更
+  ta.onkeydown = function(e) {
+    if (e.key !== 'Tab') return;
+    e.preventDefault();
+    const start = this.selectionStart;
+    const lines = this.value.split('\n');
+
+    // カーソルのある行を特定
+    let lineStart = 0, lineIdx = 0;
+    for (let i = 0; i < lines.length; i++) {
+      if (lineStart + lines[i].length >= start) { lineIdx = i; break; }
+      lineStart += lines[i].length + 1;
+    }
+
+    const origLen = lines[lineIdx].length;
+    if (e.shiftKey) {
+      if (lines[lineIdx].startsWith('  ')) lines[lineIdx] = lines[lineIdx].slice(2);
+    } else {
+      if (!lines[lineIdx].startsWith('  ')) lines[lineIdx] = '  ' + lines[lineIdx];
+    }
+    const delta = lines[lineIdx].length - origLen;
+    this.value = lines.join('\n');
+    const newCursor = Math.max(lineStart, Math.min(lineStart + lines[lineIdx].length, start + delta));
+    this.setSelectionRange(newCursor, newCursor);
+  };
 }
 
 function removePendingTodo(i) {
@@ -614,8 +674,6 @@ async function saveToNotion() {
   const dateISO = d.toISOString();
   const title   = `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${pad(d.getMinutes())} ${body.slice(0, 25)}`;
 
-  const GAS_URL = 'https://script.google.com/macros/s/AKfycbzLXjm1g8cmqVk3txuR_7s3yqV0Ivy1gliAtCHrKMuGlUdnvRLnQORYLaYP0Y-R10M4gQ/exec';
-
   async function notionPost(dbId, props) {
     const r = await fetch(GAS_URL, {
       method: 'POST',
@@ -640,16 +698,26 @@ async function saveToNotion() {
       気分: { select:       { name: aiResult.mood || '普通' } }
     });
 
-    for (const t of pendingTodos) {
+    // ToDoをtextareaから読み取って保存
+    const todoTA    = document.getElementById('todoChips');
+    const todoLines = todoTA
+      ? todoTA.value.split('\n').filter(l => l.trim())
+      : pendingTodos.map(t => typeof t === 'string' ? t : (t.level === 1 ? '  ' : '') + t.text);
+
+    for (const line of todoLines) {
+      const isChild = line.startsWith('  ');
+      const text    = line.trim();
+      if (!text) continue;
       await notionPost(todoDb, {
-        タスク: { title:  [{ text: { content: t } }] },
-        日付:   { date:   { start: dateISO } },
-        完了:   { checkbox: false }
+        タスク: { title:    [{ text: { content: text } }] },
+        日付:   { date:     { start: dateISO } },
+        完了:   { checkbox: false },
+        レベル: { number:   isChild ? 1 : 0 }
       });
     }
 
     hideLoading();
-    const msg = pendingTodos.length ? `（ToDo ${pendingTodos.length}件も保存）` : '';
+    const msg = todoLines.filter(l=>l.trim()).length ? `（ToDo ${todoLines.filter(l=>l.trim()).length}件も保存）` : '';
     toast(`✅ 保存しました ${msg}`);
     setTimeout(() => { clearAll(); backToRecord(); }, 1500);
 
@@ -675,43 +743,49 @@ async function loadTodos() {
   c.innerHTML = '<p class="empty-state">読み込み中...</p>';
 
   try {
-    const GAS_URL = 'https://script.google.com/macros/s/AKfycbzLXjm1g8cmqVk3txuR_7s3yqV0Ivy1gliAtCHrKMuGlUdnvRLnQORYLaYP0Y-R10M4gQ/exec';
-    const res = await fetch(GAS_URL, {
-      method: 'POST',
-      body: JSON.stringify({
-        url: `https://api.notion.com/v1/databases/${todoDb}/query`,
+    let allItems = [], cursor = null;
+
+    // 最大3回（300件）ページネーション
+    for (let i = 0; i < 3; i++) {
+      const payload = {
+        filter: { property: '完了', checkbox: { equals: false } },
+        sorts:  [{ property: '日付', direction: 'ascending' }],
+        page_size: 100
+      };
+      if (cursor) payload.start_cursor = cursor;
+
+      const res = await fetch(GAS_URL, {
         method: 'POST',
-        token: notionKey,
-        payload: {
-          filter: { property: '完了', checkbox: { equals: false } },
-          sorts:  [{ property: '日付', direction: 'ascending' }]
-        }
-      })
-    });
+        body: JSON.stringify({
+          url: `https://api.notion.com/v1/databases/${todoDb}/query`,
+          method: 'POST', token: notionKey, payload
+        })
+      });
+      if (!res.ok) throw new Error(`${res.status}`);
+      const data = await res.json();
+      allItems = allItems.concat(data.results || []);
+      if (!data.has_more) break;
+      cursor = data.next_cursor;
+    }
 
-    if (!res.ok) throw new Error(`${res.status}`);
-    const data  = await res.json();
-    const items = data.results || [];
-
-    if (!items.length) {
+    if (!allItems.length) {
       c.innerHTML = '<p class="empty-state">✨ 未完了のToDoはありません</p>';
       return;
     }
 
     c.innerHTML = '';
-    items.forEach(page => {
+
+    // ＋ボタン行
+    const addRow = document.createElement('div');
+    addRow.className = 'add-todo-row';
+    addRow.innerHTML = '<button class="add-todo-btn" onclick="addNewTodo()">＋ 親タスクを追加</button>';
+    c.appendChild(addRow);
+
+    allItems.forEach(page => {
       const task    = page.properties['タスク']?.title?.[0]?.plain_text || '（無題）';
       const dateStr = (page.properties['日付']?.date?.start || '').slice(0, 10);
-
-      const div = document.createElement('div');
-      div.className = 'todo-list-item';
-      div.innerHTML = `
-        <div class="todo-check"></div>
-        <span class="todo-task">${task}</span>
-        ${dateStr ? `<span class="todo-date">${dateStr}</span>` : ''}
-      `;
-      div.addEventListener('click', () => completeTodo(page.id, div));
-      c.appendChild(div);
+      const level   = page.properties['レベル']?.number ?? 0;
+      c.appendChild(createTodoItem(page.id, task, dateStr, level));
     });
 
   } catch (err) {
@@ -719,10 +793,146 @@ async function loadTodos() {
   }
 }
 
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function createTodoItem(pageId, task, dateStr, level) {
+  const div = document.createElement('div');
+  div.className = 'todo-list-item' + (level === 1 ? ' child' : '');
+  div.dataset.pageId = pageId;
+  div.dataset.level  = level;
+  div.innerHTML = `
+    <div class="todo-check" onclick="completeTodoEl(this)"></div>
+    <span class="todo-task-text" onclick="startEdit(this)">${escHtml(task)}</span>
+    ${dateStr ? `<span class="todo-date">${dateStr}</span>` : ''}
+    <div class="todo-actions">
+      <button class="todo-action-btn" title="親タスクへ" onclick="changeLevel(this,-1)">←</button>
+      <button class="todo-action-btn" title="子タスクへ" onclick="changeLevel(this,+1)">→</button>
+    </div>
+  `;
+  return div;
+}
+
+function completeTodoEl(checkEl) {
+  const div = checkEl.closest('.todo-list-item');
+  completeTodo(div.dataset.pageId, div);
+}
+
+function startEdit(span) {
+  const div    = span.closest('.todo-list-item');
+  const pageId = div.dataset.pageId;
+  const orig   = span.textContent;
+
+  const input = document.createElement('input');
+  input.className = 'todo-task-input';
+  input.value     = orig;
+  span.replaceWith(input);
+  input.focus(); input.select();
+
+  const commit = async () => {
+    const text    = input.value.trim() || orig;
+    const newSpan = document.createElement('span');
+    newSpan.className   = 'todo-task-text';
+    newSpan.textContent = text;
+    newSpan.onclick     = () => startEdit(newSpan);
+    input.replaceWith(newSpan);
+    if (text === orig) return;
+    try {
+      await fetch(GAS_URL, {
+        method: 'POST',
+        body: JSON.stringify({
+          url:     `https://api.notion.com/v1/pages/${pageId}`,
+          method:  'PATCH',
+          token:   ls('notionKey'),
+          payload: { properties: { タスク: { title: [{ text: { content: text } }] } } }
+        })
+      });
+      toast('✏️ 更新しました');
+    } catch {
+      toast('更新に失敗しました');
+      newSpan.textContent = orig;
+    }
+  };
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter')  { e.preventDefault(); input.blur(); }
+    if (e.key === 'Escape') { input.value = orig; input.blur(); }
+  });
+}
+
+async function changeLevel(btn, delta) {
+  const div      = btn.closest('.todo-list-item');
+  const pageId   = div.dataset.pageId;
+  const curLevel = parseInt(div.dataset.level) || 0;
+  const newLevel = Math.max(0, Math.min(1, curLevel + delta));
+  if (newLevel === curLevel) return;
+
+  div.dataset.level = newLevel;
+  newLevel === 1 ? div.classList.add('child') : div.classList.remove('child');
+
+  try {
+    await fetch(GAS_URL, {
+      method: 'POST',
+      body: JSON.stringify({
+        url:     `https://api.notion.com/v1/pages/${pageId}`,
+        method:  'PATCH',
+        token:   ls('notionKey'),
+        payload: { properties: { レベル: { number: newLevel } } }
+      })
+    });
+    toast(newLevel === 1 ? '→ 子タスクに変更' : '← 親タスクに変更');
+  } catch {
+    // ロールバック
+    div.dataset.level = curLevel;
+    curLevel === 1 ? div.classList.add('child') : div.classList.remove('child');
+    toast('更新に失敗しました');
+  }
+}
+
+async function addNewTodo() {
+  const notionKey = ls('notionKey');
+  if (!notionKey) { toast('Notion APIキーを設定してください'); openSettings(); return; }
+  const todoDb = ls('todoDbId') || TODO_DB;
+
+  showLoading('追加中...');
+  try {
+    const r = await fetch(GAS_URL, {
+      method: 'POST',
+      body: JSON.stringify({
+        url:    'https://api.notion.com/v1/pages',
+        method: 'POST',
+        token:  notionKey,
+        payload: {
+          parent: { database_id: todoDb },
+          properties: {
+            タスク: { title:    [{ text: { content: '新しいタスク' } }] },
+            日付:   { date:     { start: new Date().toISOString() } },
+            完了:   { checkbox: false },
+            レベル: { number:   0 }
+          }
+        }
+      })
+    });
+    if (!r.ok) throw new Error();
+    const data = await r.json();
+    hideLoading();
+
+    const c       = document.getElementById('todoListContainer');
+    const addRow  = c.querySelector('.add-todo-row');
+    const newItem = createTodoItem(data.id, '新しいタスク', new Date().toISOString().slice(0,10), 0);
+    c.insertBefore(newItem, addRow ? addRow.nextSibling : null);
+    startEdit(newItem.querySelector('.todo-task-text'));
+
+  } catch {
+    hideLoading();
+    toast('追加に失敗しました');
+  }
+}
+
 async function completeTodo(pageId, el) {
   el.classList.add('completing');
   try {
-    const GAS_URL = 'https://script.google.com/macros/s/AKfycbzLXjm1g8cmqVk3txuR_7s3yqV0Ivy1gliAtCHrKMuGlUdnvRLnQORYLaYP0Y-R10M4gQ/exec';
     const r = await fetch(GAS_URL, {
       method: 'POST',
       body: JSON.stringify({
