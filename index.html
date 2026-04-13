@@ -330,7 +330,7 @@ textarea::placeholder { color: #4a4a4a; }
         <span class="todo-header-title">未完了のToDo</span>
         <div style="display:flex;gap:8px;">
           <button class="refresh-btn" onclick="addNewTodo()">＋ 追加</button>
-          <button class="refresh-btn" onclick="loadTodos()">↺ 更新</button>
+          <button class="refresh-btn" id="syncStatusBtn" onclick="loadTodos()">↺ 更新</button>
         </div>
       </div>
       <div id="todoListContainer" style="width:100%">
@@ -573,13 +573,18 @@ ${corrected}
 {
   "formatted": "整形後テキスト（句読点・改行を適切に追加、明らかな誤字修正）",
   "tags": ["仕事", "気づき", "ToDo", "その他" から該当するもの（複数可）],
-  "todos": ["ToDo項目1", "ToDo項目2"],
+  "todos": [
+    {"text": "親タスク名", "level": 0},
+    {"text": "子タスク名", "level": 1}
+  ],
   "mood": "良い" または "普通" または "悪い"
 }
 
-todosの抽出ルール：
+todosの抽出・グループ化ルール：
 - 「〜する」「〜しなければ」「〜を送る」「〜に電話する」など、具体的な行動が必要なものを全て抽出する
-- ジャーナルの話の流れに埋まっていても見つけ出す
+- 関連するタスクは親子でグループ化する（例：「営業関連」level:0 の下に具体的なタスクをlevel:1で）
+- 明確な親テーマがある場合はlevel:0の親タスクを作り、具体的な作業をlevel:1の子タスクにする
+- 単独のタスクはlevel:0のみでOK（無理にグループ化しない）
 - 1つのToDoは短く具体的に（例：「山田さんに電話する」）
 - ToDoがない場合は空配列にする`;
 
@@ -606,7 +611,10 @@ todosの抽出ルール：
 
     aiResult     = JSON.parse(m[0]);
     savedDate    = new Date();
-    pendingTodos = [...(aiResult.todos || [])];
+    // todos は {text, level} オブジェクトまたは文字列のどちらも許容
+    pendingTodos = (aiResult.todos || []).map(t =>
+      typeof t === 'string' ? { text: t, level: 0 } : t
+    );
 
     hideLoading();
     renderResult();
@@ -730,20 +738,25 @@ async function saveToNotion() {
       ? todoTA.value.split('\n').filter(l => l.trim())
       : pendingTodos.map(t => typeof t === 'string' ? t : (t.level === 1 ? '  ' : '') + t.text);
 
-    for (const line of todoLines) {
+    const validLines = todoLines.filter(l => l.trim());
+    for (let idx = 0; idx < validLines.length; idx++) {
+      const line    = validLines[idx];
       const isChild = line.startsWith('  ');
       const text    = line.trim();
       if (!text) continue;
+      // index 0 が最新日付になるようオフセット（降順ソートで上に来る）
+      const taskDate = new Date(d.getTime() + (validLines.length - 1 - idx) * 1000).toISOString();
       await notionPost(todoDb, {
         タスク: { title:    [{ text: { content: text } }] },
-        日付:   { date:     { start: dateISO } },
+        日付:   { date:     { start: taskDate } },
         完了:   { checkbox: false },
-        レベル: { number:   isChild ? 1 : 0 }
+        レベル: { number:   isChild ? 1 : 0 },
+        順序:   { number:   (idx + 1) * 10 }
       });
     }
 
     hideLoading();
-    const msg = todoLines.filter(l=>l.trim()).length ? `（ToDo ${todoLines.filter(l=>l.trim()).length}件も保存）` : '';
+    const msg = validLines.filter(l=>l.trim()).length ? `（ToDo ${validLines.filter(l=>l.trim()).length}件も保存）` : '';
     toast(`✅ 保存しました ${msg}`);
     setTimeout(() => { clearAll(); backToRecord(); }, 1500);
 
@@ -775,7 +788,7 @@ async function loadTodos() {
     for (let i = 0; i < 3; i++) {
       const payload = {
         filter: { property: '完了', checkbox: { equals: false } },
-        sorts:  [{ property: '日付', direction: 'ascending' }],
+        sorts:  [{ property: '順序', direction: 'ascending' }],
         page_size: 100
       };
       if (cursor) payload.start_cursor = cursor;
@@ -801,17 +814,32 @@ async function loadTodos() {
 
     c.innerHTML = '';
 
+    // 順序がnullのタスクをバックグラウンドで初期化
+    allItems.forEach((page, i) => {
+      if (page.properties['順序']?.number == null) {
+        const initOrder = (i + 1) * 10;
+        page._initOrder = initOrder;
+        fetch(GAS_URL, { method: 'POST', body: JSON.stringify({
+          url: `https://api.notion.com/v1/pages/${page.id}`,
+          method: 'PATCH', token: ls('notionKey'),
+          payload: { properties: { 順序: { number: initOrder } } }
+        })}).catch(() => {});
+      }
+    });
+
     // ＋ボタン行
     const addRow = document.createElement('div');
     addRow.className = 'add-todo-row';
     addRow.innerHTML = '<button class="add-todo-btn" onclick="addNewTodo()">＋ 親タスクを追加</button>';
     c.appendChild(addRow);
 
-    allItems.forEach(page => {
+    allItems.forEach((page, i) => {
       const task    = page.properties['タスク']?.title?.[0]?.plain_text || '（無題）';
-      const dateStr = (page.properties['日付']?.date?.start || '').slice(0, 10);
+      const dateISO = page.properties['日付']?.date?.start || '';
+      const dateStr = dateISO.slice(0, 10);
       const level   = page.properties['レベル']?.number ?? 0;
-      c.appendChild(createTodoItem(page.id, task, dateStr, level));
+      const order   = page.properties['順序']?.number ?? page._initOrder ?? (i + 1) * 10;
+      c.appendChild(createTodoItem(page.id, task, dateStr, level, dateISO, order));
     });
 
   } catch (err) {
@@ -823,16 +851,20 @@ function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-function createTodoItem(pageId, task, dateStr, level) {
+function createTodoItem(pageId, task, dateStr, level, dateISO, order) {
   const div = document.createElement('div');
   div.className = 'todo-list-item' + (level === 1 ? ' child' : '');
   div.dataset.pageId = pageId;
   div.dataset.level  = level;
+  div.dataset.date   = dateISO || dateStr || '';
+  div.dataset.order  = order ?? 0;
   div.innerHTML = `
     <div class="todo-check" onclick="completeTodoEl(this)"></div>
     <span class="todo-task-text" onclick="startEdit(this)">${escHtml(task)}</span>
     ${dateStr ? `<span class="todo-date">${dateStr}</span>` : ''}
     <div class="todo-actions">
+      <button class="todo-action-btn" title="上へ" onclick="moveTodo(this,'up')">↑</button>
+      <button class="todo-action-btn" title="下へ" onclick="moveTodo(this,'down')">↓</button>
       <button class="todo-action-btn" title="親タスクへ" onclick="changeLevel(this,-1)">←</button>
       <button class="todo-action-btn" title="子タスクへ" onclick="changeLevel(this,+1)">→</button>
     </div>
@@ -946,7 +978,8 @@ async function addNewTodo() {
 
     const c       = document.getElementById('todoListContainer');
     const addRow  = c.querySelector('.add-todo-row');
-    const newItem = createTodoItem(data.id, '新しいタスク', new Date().toISOString().slice(0,10), 0);
+    const isoNow  = new Date().toISOString();
+    const newItem = createTodoItem(data.id, '新しいタスク', isoNow.slice(0,10), 0, isoNow, 0);
     c.insertBefore(newItem, addRow ? addRow.nextSibling : null);
     startEdit(newItem.querySelector('.todo-task-text'));
 
@@ -956,8 +989,47 @@ async function addNewTodo() {
   }
 }
 
+function moveTodo(btn, dir) {
+  const c     = document.getElementById('todoListContainer');
+  const items = [...c.querySelectorAll('.todo-list-item')];
+  const div   = btn.closest('.todo-list-item');
+  const idx   = items.indexOf(div);
+  const tIdx  = dir === 'up' ? idx - 1 : idx + 1;
+  if (tIdx < 0 || tIdx >= items.length) return;
+
+  const target  = items[tIdx];
+  const pageId1 = div.dataset.pageId;
+  const pageId2 = target.dataset.pageId;
+  let   o1      = parseFloat(div.dataset.order)    || (idx + 1) * 10;
+  let   o2      = parseFloat(target.dataset.order) || (tIdx + 1) * 10;
+
+  // 同じ値なら強制的に差をつける
+  if (o1 === o2) { o1 = idx * 10; o2 = tIdx * 10; }
+
+  // DOM即時移動
+  if (dir === 'up') c.insertBefore(div, target);
+  else              c.insertBefore(target, div);
+
+  // dataset を交換
+  div.dataset.order    = o2;
+  target.dataset.order = o1;
+
+  // Notion にバックグラウンド保存（UIはブロックしない）
+  Promise.all([
+    fetch(GAS_URL, { method: 'POST', body: JSON.stringify({
+      url: `https://api.notion.com/v1/pages/${pageId1}`,
+      method: 'PATCH', token: ls('notionKey'),
+      payload: { properties: { 順序: { number: o2 } } }
+    })}),
+    fetch(GAS_URL, { method: 'POST', body: JSON.stringify({
+      url: `https://api.notion.com/v1/pages/${pageId2}`,
+      method: 'PATCH', token: ls('notionKey'),
+      payload: { properties: { 順序: { number: o1 } } }
+    })})
+  ]).catch(() => {}); // 失敗しても画面には影響しない
+}
+
 async function completeTodo(pageId, el) {
-  el.classList.add('completing');
   try {
     const r = await fetch(GAS_URL, {
       method: 'POST',
