@@ -152,15 +152,15 @@ textarea::placeholder { color: #4a4a4a; }
   -webkit-tap-highlight-color: transparent;
 }
 .todo-list-item {
-  display: flex; align-items: center; gap: 12px; width: 100%;
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 12px; padding: 14px 16px;
-  cursor: pointer; -webkit-tap-highlight-color: transparent; transition: opacity 0.3s;
+  display: flex; align-items: flex-start; gap: 10px; width: 100%;
+  padding: 11px 4px; border-bottom: 1px solid var(--border);
+  -webkit-tap-highlight-color: transparent; transition: opacity 0.3s;
+  user-select: none; -webkit-user-select: none;
 }
 .todo-list-item.completing { opacity: 0.3; }
-.todo-check { width: 22px; height: 22px; flex-shrink: 0; border-radius: 50%; border: 2px solid var(--gold); }
-.todo-task  { font-size: 16px; flex: 1; }
-.todo-date  { font-size: 12px; color: var(--muted); flex-shrink: 0; }
+.todo-check { width: 20px; height: 20px; flex-shrink: 0; border-radius: 50%; border: 2px solid var(--gold); margin-top: 2px; cursor: pointer; }
+.todo-task  { font-size: 15px; flex: 1; word-break: break-word; }
+.todo-date  { display: none; }
 .empty-state { text-align: center; color: var(--muted); font-size: 15px; padding: 48px 0; line-height: 2; width: 100%; }
 
 /* ---- LOADING ---- */
@@ -211,8 +211,18 @@ textarea::placeholder { color: #4a4a4a; }
 
 /* ---- TODO TAB 改修 ---- */
 .todo-list-item.child {
-  margin-left: 28px;
-  border-left: 2px solid var(--border);
+  padding-left: 28px;
+}
+/* ---- DRAG AND DROP ---- */
+.todo-list-item.dragging { opacity: 0.25; }
+.drag-ghost {
+  position: fixed; left: 16px; right: 16px; z-index: 500;
+  background: var(--surface2); border: 1px solid var(--gold);
+  border-radius: 10px; padding: 10px 14px;
+  display: flex; align-items: flex-start; gap: 10px;
+  opacity: 0.95; box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  pointer-events: none; font-size: 15px; color: var(--text);
+  word-break: break-word;
 }
 .todo-task-text { flex: 1; cursor: text; word-break: break-all; }
 .todo-task-input {
@@ -861,14 +871,8 @@ function createTodoItem(pageId, task, dateStr, level, dateISO, order) {
   div.innerHTML = `
     <div class="todo-check" onclick="completeTodoEl(this)"></div>
     <span class="todo-task-text" onclick="startEdit(this)">${escHtml(task)}</span>
-    ${dateStr ? `<span class="todo-date">${dateStr}</span>` : ''}
-    <div class="todo-actions">
-      <button class="todo-action-btn" title="上へ" onclick="moveTodo(this,'up')">↑</button>
-      <button class="todo-action-btn" title="下へ" onclick="moveTodo(this,'down')">↓</button>
-      <button class="todo-action-btn" title="親タスクへ" onclick="changeLevel(this,-1)">←</button>
-      <button class="todo-action-btn" title="子タスクへ" onclick="changeLevel(this,+1)">→</button>
-    </div>
   `;
+  addDragListeners(div);
   return div;
 }
 
@@ -1027,6 +1031,104 @@ function moveTodo(btn, dir) {
       payload: { properties: { 順序: { number: o1 } } }
     })})
   ]).catch(() => {}); // 失敗しても画面には影響しない
+}
+
+// =====================================================
+// DRAG AND DROP（長押し→ドラッグ→並び替え）
+// =====================================================
+let _pressTimer = null;
+let _dragEl     = null;
+let _ghost      = null;
+let _ghostOffY  = 0;
+
+function addDragListeners(el) {
+  el.addEventListener('touchstart', _onTouchStart, { passive: true });
+  el.addEventListener('touchmove',  _onTouchMove,  { passive: false });
+  el.addEventListener('touchend',   _onTouchEnd,   { passive: true });
+  el.addEventListener('touchcancel',_cancelDrag,   { passive: true });
+}
+
+function _onTouchStart(e) {
+  const el    = this;
+  const touch = e.touches[0];
+  _pressTimer = setTimeout(() => _startDrag(el, touch.clientY), 350);
+}
+
+function _startDrag(el, clientY) {
+  _dragEl = el;
+  const rect = el.getBoundingClientRect();
+  _ghostOffY = clientY - rect.top;
+
+  // ゴースト（ドラッグ中の見た目）を作成
+  _ghost = document.createElement('div');
+  _ghost.className = 'drag-ghost';
+  _ghost.textContent = el.querySelector('.todo-task-text')?.textContent || '';
+  _ghost.style.top = (clientY - _ghostOffY) + 'px';
+  document.body.appendChild(_ghost);
+
+  el.classList.add('dragging');
+  if (navigator.vibrate) navigator.vibrate(30);
+}
+
+function _onTouchMove(e) {
+  if (!_dragEl) {
+    clearTimeout(_pressTimer);
+    return; // スクロールを邪魔しない
+  }
+  e.preventDefault(); // ドラッグ中だけスクロール抑止
+
+  const y = e.touches[0].clientY;
+  if (_ghost) _ghost.style.top = (y - _ghostOffY) + 'px';
+
+  // ドロップ先を探してDOMを移動
+  const c     = document.getElementById('todoListContainer');
+  const items = [...c.querySelectorAll('.todo-list-item:not(.dragging)')];
+  for (const item of items) {
+    const r   = item.getBoundingClientRect();
+    const mid = r.top + r.height / 2;
+    if (y > r.top && y < r.bottom) {
+      if (y < mid) c.insertBefore(_dragEl, item);
+      else         c.insertBefore(_dragEl, item.nextSibling || null);
+      break;
+    }
+  }
+}
+
+function _onTouchEnd() {
+  clearTimeout(_pressTimer);
+  if (!_dragEl) return;
+  _finishDrag();
+}
+
+function _cancelDrag() {
+  clearTimeout(_pressTimer);
+  if (_ghost) { _ghost.remove(); _ghost = null; }
+  if (_dragEl) { _dragEl.classList.remove('dragging'); _dragEl = null; }
+}
+
+function _finishDrag() {
+  if (_ghost) { _ghost.remove(); _ghost = null; }
+  if (!_dragEl) return;
+  _dragEl.classList.remove('dragging');
+
+  // 全アイテムの新しい順序をNotionにバックグラウンド保存
+  const c         = document.getElementById('todoListContainer');
+  const items     = [...c.querySelectorAll('.todo-list-item')];
+  const notionKey = ls('notionKey');
+  items.forEach((item, i) => {
+    const newOrder = (i + 1) * 10;
+    if (parseFloat(item.dataset.order) !== newOrder) {
+      item.dataset.order = newOrder;
+      fetch(GAS_URL, { method: 'POST', body: JSON.stringify({
+        url: `https://api.notion.com/v1/pages/${item.dataset.pageId}`,
+        method: 'PATCH', token: notionKey,
+        payload: { properties: { 順序: { number: newOrder } } }
+      })}).catch(() => {});
+    }
+  });
+
+  _dragEl = null;
+  toast('✅ 並び順を更新しました');
 }
 
 async function completeTodo(pageId, el) {
