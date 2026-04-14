@@ -340,7 +340,7 @@ textarea::placeholder { color: #4a4a4a; }
         <span class="todo-header-title">未完了のToDo</span>
         <div style="display:flex;gap:8px;">
           <button class="refresh-btn" onclick="addNewTodo()">＋ 追加</button>
-          <button class="refresh-btn" id="syncStatusBtn" onclick="loadTodos()">↺ 更新</button>
+          <button class="refresh-btn" id="syncStatusBtn" onclick="loadTodos(true)">↺ 更新</button>
         </div>
       </div>
       <div id="todoListContainer" style="width:100%">
@@ -779,7 +779,10 @@ async function saveToNotion() {
 // =====================================================
 // TODO TAB
 // =====================================================
-async function loadTodos() {
+const TODOS_CACHE_KEY = 'todosCache';
+let _lastSyncTime = 0;
+
+async function loadTodos(forceRefresh = false) {
   const notionKey = ls('notionKey');
   const todoDb    = ls('todoDbId') || TODO_DB;
   const c         = document.getElementById('todoListContainer');
@@ -789,12 +792,26 @@ async function loadTodos() {
     return;
   }
 
-  c.innerHTML = '<p class="empty-state">読み込み中...</p>';
+  // キャッシュがあれば即座に表示
+  const cached = localStorage.getItem(TODOS_CACHE_KEY);
+  if (cached) {
+    try { renderTodoItems(JSON.parse(cached), c); } catch (_) {}
+    // 60秒以内の同期はスキップ（強制更新以外）
+    if (!forceRefresh && Date.now() - _lastSyncTime < 60000) return;
+  } else {
+    c.innerHTML = '<p class="empty-state">読み込み中...</p>';
+  }
+
+  // バックグラウンドでNotionと同期
+  _syncTodosFromNotion(notionKey, todoDb, c);
+}
+
+async function _syncTodosFromNotion(notionKey, todoDb, c) {
+  const btn = document.getElementById('syncStatusBtn');
+  if (btn) btn.textContent = '同期中...';
 
   try {
     let allItems = [], cursor = null;
-
-    // 最大3回（300件）ページネーション
     for (let i = 0; i < 3; i++) {
       const payload = {
         filter: { property: '完了', checkbox: { equals: false } },
@@ -802,13 +819,9 @@ async function loadTodos() {
         page_size: 100
       };
       if (cursor) payload.start_cursor = cursor;
-
       const res = await fetch(GAS_URL, {
         method: 'POST',
-        body: JSON.stringify({
-          url: `https://api.notion.com/v1/databases/${todoDb}/query`,
-          method: 'POST', token: notionKey, payload
-        })
+        body: JSON.stringify({ url: `https://api.notion.com/v1/databases/${todoDb}/query`, method: 'POST', token: notionKey, payload })
       });
       if (!res.ok) throw new Error(`${res.status}`);
       const data = await res.json();
@@ -817,45 +830,64 @@ async function loadTodos() {
       cursor = data.next_cursor;
     }
 
-    if (!allItems.length) {
-      c.innerHTML = '<p class="empty-state">✨ 未完了のToDoはありません</p>';
-      return;
-    }
-
-    c.innerHTML = '';
-
-    // 順序がnullのタスクをバックグラウンドで初期化
-    allItems.forEach((page, i) => {
-      if (page.properties['順序']?.number == null) {
-        const initOrder = (i + 1) * 10;
-        page._initOrder = initOrder;
-        fetch(GAS_URL, { method: 'POST', body: JSON.stringify({
-          url: `https://api.notion.com/v1/pages/${page.id}`,
-          method: 'PATCH', token: ls('notionKey'),
-          payload: { properties: { 順序: { number: initOrder } } }
-        })}).catch(() => {});
-      }
-    });
-
-    // ＋ボタン行
-    const addRow = document.createElement('div');
-    addRow.className = 'add-todo-row';
-    addRow.innerHTML = '<button class="add-todo-btn" onclick="addNewTodo()">＋ 親タスクを追加</button>';
-    c.appendChild(addRow);
-
-    allItems.forEach((page, i) => {
-      const task    = page.properties['タスク']?.title?.[0]?.plain_text || '（無題）';
-      const dateISO = page.properties['日付']?.date?.start || '';
-      const dateStr = dateISO.slice(0, 10);
-      const level   = page.properties['レベル']?.number ?? 0;
-      const order   = page.properties['順序']?.number ?? page._initOrder ?? (i + 1) * 10;
-      c.appendChild(createTodoItem(page.id, task, dateStr, level, dateISO, order));
-    });
+    localStorage.setItem(TODOS_CACHE_KEY, JSON.stringify(allItems));
+    _lastSyncTime = Date.now();
+    renderTodoItems(allItems, c);
 
   } catch (err) {
-    c.innerHTML = `<p class="empty-state">読み込みエラー<br>${err.message}</p>`;
+    if (!localStorage.getItem(TODOS_CACHE_KEY)) {
+      c.innerHTML = `<p class="empty-state">読み込みエラー<br>${err.message}</p>`;
+    } else {
+      toast('⚠️ 同期失敗（キャッシュ表示中）');
+    }
+  } finally {
+    if (btn) btn.textContent = '↺ 更新';
   }
 }
+
+function renderTodoItems(allItems, c) {
+  if (!allItems.length) {
+    c.innerHTML = '<p class="empty-state">✨ 未完了のToDoはありません</p>';
+    return;
+  }
+  c.innerHTML = '';
+
+  allItems.forEach((page, i) => {
+    if (page.properties['順序']?.number == null) {
+      const initOrder = (i + 1) * 10;
+      page._initOrder = initOrder;
+      fetch(GAS_URL, { method: 'POST', body: JSON.stringify({
+        url: `https://api.notion.com/v1/pages/${page.id}`,
+        method: 'PATCH', token: ls('notionKey'),
+        payload: { properties: { 順序: { number: initOrder } } }
+      })}).catch(() => {});
+    }
+  });
+
+  const addRow = document.createElement('div');
+  addRow.className = 'add-todo-row';
+  addRow.innerHTML = '<button class="add-todo-btn" onclick="addNewTodo()">＋ 親タスクを追加</button>';
+  c.appendChild(addRow);
+
+  allItems.forEach((page, i) => {
+    const task    = page.properties['タスク']?.title?.[0]?.plain_text || '（無題）';
+    const dateISO = page.properties['日付']?.date?.start || '';
+    const dateStr = dateISO.slice(0, 10);
+    const level   = page.properties['レベル']?.number ?? 0;
+    const order   = page.properties['順序']?.number ?? page._initOrder ?? (i + 1) * 10;
+    c.appendChild(createTodoItem(page.id, task, dateStr, level, dateISO, order));
+  });
+}
+
+function _removeFromCache(pageId) {
+  const cached = localStorage.getItem(TODOS_CACHE_KEY);
+  if (!cached) return;
+  try {
+    const items = JSON.parse(cached).filter(p => p.id !== pageId);
+    localStorage.setItem(TODOS_CACHE_KEY, JSON.stringify(items));
+  } catch (_) {}
+}
+
 
 function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -1034,12 +1066,14 @@ function moveTodo(btn, dir) {
 }
 
 // =====================================================
-// DRAG AND DROP（長押し→ドラッグ→並び替え）
+// DRAG AND DROP（長押し→縦:並び替え／横:レベル変更）
 // =====================================================
-let _pressTimer = null;
-let _dragEl     = null;
-let _ghost      = null;
-let _ghostOffY  = 0;
+let _pressTimer  = null;
+let _dragEl      = null;
+let _ghost       = null;
+let _ghostOffY   = 0;
+let _dragStartX  = 0;
+let _pendingLevel = 0;
 
 function addDragListeners(el) {
   el.addEventListener('touchstart', _onTouchStart, { passive: true });
@@ -1051,19 +1085,21 @@ function addDragListeners(el) {
 function _onTouchStart(e) {
   const el    = this;
   const touch = e.touches[0];
+  _dragStartX = touch.clientX;
   _pressTimer = setTimeout(() => _startDrag(el, touch.clientY), 350);
 }
 
 function _startDrag(el, clientY) {
-  _dragEl = el;
-  const rect = el.getBoundingClientRect();
-  _ghostOffY = clientY - rect.top;
+  _dragEl       = el;
+  _pendingLevel = parseInt(el.dataset.level) || 0;
+  const rect    = el.getBoundingClientRect();
+  _ghostOffY    = clientY - rect.top;
 
-  // ゴースト（ドラッグ中の見た目）を作成
   _ghost = document.createElement('div');
   _ghost.className = 'drag-ghost';
   _ghost.textContent = el.querySelector('.todo-task-text')?.textContent || '';
-  _ghost.style.top = (clientY - _ghostOffY) + 'px';
+  _ghost.style.top         = (clientY - _ghostOffY) + 'px';
+  _ghost.style.paddingLeft = (_pendingLevel === 1 ? 40 : 14) + 'px';
   document.body.appendChild(_ghost);
 
   el.classList.add('dragging');
@@ -1071,16 +1107,26 @@ function _startDrag(el, clientY) {
 }
 
 function _onTouchMove(e) {
-  if (!_dragEl) {
-    clearTimeout(_pressTimer);
-    return; // スクロールを邪魔しない
+  if (!_dragEl) { clearTimeout(_pressTimer); return; }
+  e.preventDefault();
+
+  const touch = e.touches[0];
+  const y     = touch.clientY;
+  const dx    = touch.clientX - _dragStartX;
+  const curLevel = parseInt(_dragEl.dataset.level) || 0;
+
+  // 横50px以上で子→親 or 親→子
+  if      (dx < -50 && curLevel === 1) _pendingLevel = 0;
+  else if (dx >  50 && curLevel === 0) _pendingLevel = 1;
+  else                                 _pendingLevel = curLevel;
+
+  if (_ghost) {
+    _ghost.style.top         = (y - _ghostOffY) + 'px';
+    _ghost.style.paddingLeft = (_pendingLevel === 1 ? 40 : 14) + 'px';
+    _ghost.style.borderColor = (_pendingLevel !== curLevel) ? '#aaa' : '';
   }
-  e.preventDefault(); // ドラッグ中だけスクロール抑止
 
-  const y = e.touches[0].clientY;
-  if (_ghost) _ghost.style.top = (y - _ghostOffY) + 'px';
-
-  // ドロップ先を探してDOMを移動
+  // 縦方向で並び替え
   const c     = document.getElementById('todoListContainer');
   const items = [...c.querySelectorAll('.todo-list-item:not(.dragging)')];
   for (const item of items) {
@@ -1102,7 +1148,7 @@ function _onTouchEnd() {
 
 function _cancelDrag() {
   clearTimeout(_pressTimer);
-  if (_ghost) { _ghost.remove(); _ghost = null; }
+  if (_ghost)  { _ghost.remove();  _ghost  = null; }
   if (_dragEl) { _dragEl.classList.remove('dragging'); _dragEl = null; }
 }
 
@@ -1111,10 +1157,24 @@ function _finishDrag() {
   if (!_dragEl) return;
   _dragEl.classList.remove('dragging');
 
-  // 全アイテムの新しい順序をNotionにバックグラウンド保存
-  const c         = document.getElementById('todoListContainer');
-  const items     = [...c.querySelectorAll('.todo-list-item')];
   const notionKey = ls('notionKey');
+  const curLevel  = parseInt(_dragEl.dataset.level) || 0;
+  const pageId    = _dragEl.dataset.pageId;
+
+  // レベル変更があれば即時反映 + Notion保存
+  if (_pendingLevel !== curLevel) {
+    _dragEl.dataset.level = _pendingLevel;
+    _pendingLevel === 1 ? _dragEl.classList.add('child') : _dragEl.classList.remove('child');
+    fetch(GAS_URL, { method: 'POST', body: JSON.stringify({
+      url: `https://api.notion.com/v1/pages/${pageId}`,
+      method: 'PATCH', token: notionKey,
+      payload: { properties: { レベル: { number: _pendingLevel } } }
+    })}).catch(() => {});
+  }
+
+  // 全アイテムの順序をNotionにバックグラウンド保存
+  const c     = document.getElementById('todoListContainer');
+  const items = [...c.querySelectorAll('.todo-list-item')];
   items.forEach((item, i) => {
     const newOrder = (i + 1) * 10;
     if (parseFloat(item.dataset.order) !== newOrder) {
@@ -1128,7 +1188,7 @@ function _finishDrag() {
   });
 
   _dragEl = null;
-  toast('✅ 並び順を更新しました');
+  toast('✅ 更新しました');
 }
 
 async function completeTodo(pageId, el) {
@@ -1154,6 +1214,7 @@ async function completeTodo(pageId, el) {
       el.style.opacity = '0';
     });
     setTimeout(() => el.remove(), 320);
+    _removeFromCache(pageId);
     toast('✅ 完了しました');
 
   } catch {

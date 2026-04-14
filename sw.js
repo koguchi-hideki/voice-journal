@@ -1,4 +1,4 @@
-const CACHE = 'voice-journal-v6.1';
+const CACHE = 'voice-journal-v6.2';
 const FILES = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', e => {
