@@ -925,7 +925,19 @@ function startEdit(span) {
   input.focus(); input.select();
 
   const commit = async () => {
-    const text    = input.value.trim() || orig;
+    const text = input.value.trim();
+
+    // 空にして確定 → 削除
+    if (!text) {
+      const newSpan = document.createElement('span');
+      newSpan.className   = 'todo-task-text';
+      newSpan.textContent = orig;
+      newSpan.onclick     = () => startEdit(newSpan);
+      input.replaceWith(newSpan);
+      deleteTodo(pageId, div);
+      return;
+    }
+
     const newSpan = document.createElement('span');
     newSpan.className   = 'todo-task-text';
     newSpan.textContent = text;
@@ -1189,6 +1201,34 @@ function _finishDrag() {
 
   _dragEl = null;
   toast('✅ 更新しました');
+}
+
+async function deleteTodo(pageId, el) {
+  try {
+    await fetch(GAS_URL, {
+      method: 'POST',
+      body: JSON.stringify({
+        url:     `https://api.notion.com/v1/pages/${pageId}`,
+        method:  'PATCH',
+        token:   ls('notionKey'),
+        payload: { archived: true }
+      })
+    });
+    el.style.height     = el.offsetHeight + 'px';
+    el.style.overflow   = 'hidden';
+    el.style.transition = 'all 0.3s ease';
+    requestAnimationFrame(() => {
+      el.style.height  = '0';
+      el.style.padding = '0';
+      el.style.margin  = '0';
+      el.style.opacity = '0';
+    });
+    setTimeout(() => el.remove(), 320);
+    _removeFromCache(pageId);
+    toast('🗑️ 削除しました');
+  } catch {
+    toast('削除に失敗しました');
+  }
 }
 
 async function completeTodo(pageId, el) {
